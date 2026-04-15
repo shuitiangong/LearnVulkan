@@ -5,10 +5,10 @@ project(LearnVulkan VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_C_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
 
 set(VULKAN_SDK_ROOT "D:/Program Files/VulkanSDK/1.4.341.1" CACHE PATH "Vulkan SDK root directory")
-set(SDL_PREFER_MAJOR_VERSION "3" CACHE STRING "Preferred SDL major version: 3 or 2")
-set_property(CACHE SDL_PREFER_MAJOR_VERSION PROPERTY STRINGS 3 2)
 
 if(WIN32 AND MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     message(FATAL_ERROR
@@ -26,54 +26,56 @@ list(PREPEND CMAKE_PREFIX_PATH
 
 find_package(Vulkan REQUIRED)
 
+set(GLM_TARGET "")
+find_package(glm CONFIG QUIET)
+if(TARGET glm::glm)
+    set(GLM_TARGET glm::glm)
+    message(STATUS "Using system GLM package")
+elseif(EXISTS "${VULKAN_SDK_ROOT}/Include/glm/glm.hpp")
+    add_library(glm_from_vulkan_sdk INTERFACE)
+    add_library(glm::glm ALIAS glm_from_vulkan_sdk)
+    target_include_directories(glm_from_vulkan_sdk INTERFACE
+        "${VULKAN_SDK_ROOT}/Include"
+    )
+    set(GLM_TARGET glm::glm)
+    message(STATUS "Using GLM headers from ${VULKAN_SDK_ROOT}/Include")
+else()
+    message(FATAL_ERROR
+        "GLM was not found. Install a glm package, or make sure "
+        "'${VULKAN_SDK_ROOT}/Include/glm/glm.hpp' exists."
+    )
+endif()
+
 set(SDL_TARGET "")
 set(SDL_RUNTIME_DLL "")
-set(SDL_MAIN_TARGET "")
-
-if(SDL_PREFER_MAJOR_VERSION STREQUAL "2")
-    find_package(SDL2 CONFIG REQUIRED)
-    set(SDL_TARGET SDL2::SDL2)
-    set(SDL_RUNTIME_DLL "${VULKAN_SDK_ROOT}/Bin/SDL2.dll")
-    if(TARGET SDL2::SDL2main)
-        set(SDL_MAIN_TARGET SDL2::SDL2main)
-    endif()
-    message(STATUS "Using SDL2 from ${VULKAN_SDK_ROOT}")
-else()
-    find_package(SDL3 CONFIG QUIET)
-    if(SDL3_FOUND)
-        set(SDL_TARGET SDL3::SDL3)
-        set(SDL_RUNTIME_DLL "${VULKAN_SDK_ROOT}/Bin/SDL3.dll")
-        message(STATUS "Using SDL3 from ${VULKAN_SDK_ROOT}")
-    else()
-        find_package(SDL2 CONFIG REQUIRED)
-        set(SDL_TARGET SDL2::SDL2)
-        set(SDL_RUNTIME_DLL "${VULKAN_SDK_ROOT}/Bin/SDL2.dll")
-        if(TARGET SDL2::SDL2main)
-            set(SDL_MAIN_TARGET SDL2::SDL2main)
-        endif()
-        message(STATUS "SDL3 not found, falling back to SDL2 from ${VULKAN_SDK_ROOT}")
-    endif()
-endif()
+find_package(SDL3 CONFIG REQUIRED)
+set(SDL_TARGET SDL3::SDL3)
+set(SDL_RUNTIME_DLL "${VULKAN_SDK_ROOT}/Bin/SDL3.dll")
+message(STATUS "Using SDL3 from ${VULKAN_SDK_ROOT}")
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/toy2d.cpp
+    src/context.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
+target_include_directories(${PROJECT_NAME}
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/toy2d"
+)
+
 if(MINGW)
     target_link_libraries(${PROJECT_NAME} PRIVATE mingw32)
-endif()
-
-if(SDL_MAIN_TARGET)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL_MAIN_TARGET})
 endif()
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         Vulkan::Vulkan
+        ${GLM_TARGET}
         ${SDL_TARGET}
 )
 

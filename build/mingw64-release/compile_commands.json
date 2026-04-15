@@ -1,8 +1,0 @@
-[
-{
-  "directory": "E:/workspace/LearnVulkan/build/mingw64-release",
-  "command": "C:\\mingw64\\bin\\g++.exe  @CMakeFiles/LearnVulkan.dir/includes_CXX.rsp -O3 -DNDEBUG -std=c++20 -Wall -Wextra -Wpedantic -o CMakeFiles\\LearnVulkan.dir\\src\\main.cpp.obj -c E:\\workspace\\LearnVulkan\\src\\main.cpp",
-  "file": "E:/workspace/LearnVulkan/src/main.cpp",
-  "output": "CMakeFiles/LearnVulkan.dir/src/main.cpp.obj"
-}
-]

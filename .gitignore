@@ -30,3 +30,5 @@
 *.exe
 *.out
 *.app
+build/mingw64-debug
+build/mingw64-release

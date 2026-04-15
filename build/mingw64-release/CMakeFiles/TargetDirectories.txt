@@ -1,4 +1,0 @@
-E:/workspace/LearnVulkan/build/mingw64-release/CMakeFiles/LearnVulkan.dir
-E:/workspace/LearnVulkan/build/mingw64-release/CMakeFiles/run.dir
-E:/workspace/LearnVulkan/build/mingw64-release/CMakeFiles/edit_cache.dir
-E:/workspace/LearnVulkan/build/mingw64-release/CMakeFiles/rebuild_cache.dir

@@ -1,1 +1,0 @@
- -lmingw32 "D:/Program Files/VulkanSDK/1.4.341.1/Lib/vulkan-1.lib" "D:/Program Files/VulkanSDK/1.4.341.1/lib/SDL3.lib" -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 
