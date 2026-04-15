@@ -1,0 +1,55 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "mingw64-base",
+      "hidden": true,
+      "generator": "MinGW Makefiles",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/mingw64.cmake",
+      "environment": {
+        "PATH": "C:/mingw64/bin;$penv{PATH}"
+      },
+      "cacheVariables": {
+        "MINGW_ROOT": "C:/mingw64",
+        "VULKAN_SDK_ROOT": "D:/Program Files/VulkanSDK/1.4.341.1",
+        "SDL_PREFER_MAJOR_VERSION": "3",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "mingw64-debug",
+      "displayName": "MinGW64 Debug",
+      "description": "Configure with 64-bit MinGW from C:/mingw64",
+      "inherits": "mingw64-base",
+      "binaryDir": "${sourceDir}/build/mingw64-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "mingw64-release",
+      "displayName": "MinGW64 Release",
+      "description": "Configure with 64-bit MinGW from C:/mingw64",
+      "inherits": "mingw64-base",
+      "binaryDir": "${sourceDir}/build/mingw64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-mingw64-debug",
+      "configurePreset": "mingw64-debug"
+    },
+    {
+      "name": "build-mingw64-release",
+      "configurePreset": "mingw64-release"
+    }
+  ]
+}
