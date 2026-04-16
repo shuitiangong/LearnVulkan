@@ -33,7 +33,7 @@ namespace toy2d {
     }
 
     Context::~Context() {
-        //surface其实是从instance创建的，不是SDL
+        // surface is created from instance, not from SDL
         instance.destroySurfaceKHR(surface);
         device.destroy();
         destroyDebugUtilsMessenger();
@@ -145,8 +145,8 @@ namespace toy2d {
                        .setQueueCount(1)
                        .setQueueFamilyIndex(queueFamilyIndices.graphicsQueue.value());
         queueCreateInfos.push_back(queueCreateInfo); 
-        // 检查是否需要创建 present 队列
-        // 如果 graphics 队列和 present 队列不同，需要创建 present 队列
+        // Check whether a separate present queue is needed.
+        // If graphics and present queues differ, create both queue infos.
         if (queueFamilyIndices.graphicsQueue.value() != queueFamilyIndices.presentQueue.value()) {
             queueCreateInfo.setPQueuePriorities(&priorities)
                            .setQueueCount(1)
@@ -163,11 +163,11 @@ namespace toy2d {
         auto properties = phyDevice.getQueueFamilyProperties();
         for (std::size_t i = 0; i < properties.size(); ++i) {
             const auto& property = properties[i];
-            //鎵惧埌鍥惧舰闃熷垪瀹舵棌
+            // graphics queue
             if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
                 queueFamilyIndices.graphicsQueue = static_cast<uint32_t>(i);
             }
-            //鎵惧埌鍛堢幇闃熷垪瀹舵棌
+            // present queue
             if (phyDevice.getSurfaceSupportKHR(i, surface)) {
                 queueFamilyIndices.presentQueue = static_cast<uint32_t>(i);
             }

@@ -22,7 +22,7 @@ namespace toy2d {
 
         //viewport
         vk::PipelineViewportStateCreateInfo viewportState;
-        vk::Viewport viewport(0, 0, width, height, -1, 1);
+        vk::Viewport viewport(0, 0, width, height, 0, 1);
         viewportState.setViewports(viewport);
         // 设置裁剪区域
         vk::Rect2D rect({0, 0}, {static_cast<uint32_t>(width), static_cast<uint32_t>(height)});

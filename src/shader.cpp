@@ -37,10 +37,10 @@ namespace toy2d {
     void Shader::initStage() {
         stage_.resize(2);
         stage_[0].setStage(vk::ShaderStageFlagBits::eVertex)
-                   .setModule(Shader::GetInstance().vertexModule)
+                   .setModule(vertexModule)
                    .setPName("main");
         stage_[1].setStage(vk::ShaderStageFlagBits::eFragment)
-                   .setModule(Shader::GetInstance().fragmentModule)
+                   .setModule(fragmentModule)
                    .setPName("main");
     }
 }
