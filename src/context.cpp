@@ -1,13 +1,15 @@
-#include "../toy2d/Context.hpp"
+#include <../toy2d/Context.hpp>
+#include <../toy2d/tool.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <functional>
 namespace toy2d {
 
     std::unique_ptr<Context> Context::instance_ = nullptr;
 
-    void Context::Init() {
-        instance_.reset(new Context);
+    void Context::Init(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc) {
+        instance_.reset(new Context(extensions, createSurfaceFunc));
     }
 
     void Context::Quit() {
@@ -15,31 +17,36 @@ namespace toy2d {
     }
 
     Context& Context::GetInstance() {
-        if (!instance_) {
-            Init();
-        }
+        assert(instance_);
         return *instance_;
     }
 
-    Context::Context() {
-        CreateInstance();
+    Context::Context(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc) {
+        CreateInstance(extensions);
         setupDebugUtilsMessenger();
         pickupPhyiscalDevice();
+        surface = createSurfaceFunc(instance);
         queryQueueFamilyIndices();
         createDevice();
         getQueues();
     }
 
     Context::~Context() {
+        //surface其实是从instance创建的，不是SDL
+        instance.destroySurfaceKHR(surface);
         device.destroy();
         destroyDebugUtilsMessenger();
         instance.destroy();
     }
 
-    void Context::CreateInstance() {
+    void Context::CreateInstance(const std::vector<const char*> extensions) {
         vk::InstanceCreateInfo createInfo;
         std::vector<const char*> layers = {"VK_LAYER_KHRONOS_validation"};
-        std::vector<const char*> extensions = {VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
+        std::vector<const char*> enabledExtensions = extensions;
+        enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        // RemoveNosupportedElemes(extensions, debugExtensions, [](const char* ext, const char* debugExt) {
+        //     return std::strcmp(ext, debugExt) == 0;
+        // });
         // auto layers = vk::enumerateInstanceLayerProperties();
         // for (const auto& layer : layers) {
         //     std::cout << layer.layerName << std::endl;
@@ -51,7 +58,8 @@ namespace toy2d {
 
         createInfo.setPApplicationInfo(&appInfo)
                   .setPEnabledLayerNames(layers)
-                  .setPEnabledExtensionNames(extensions);
+                  .setPEnabledExtensionNames(enabledExtensions);
+        
         instance = vk::createInstance(createInfo);
     }
 
@@ -126,24 +134,43 @@ namespace toy2d {
     }
 
     void Context::createDevice() {
+        std::array extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
         vk::DeviceCreateInfo createInfo;
-        vk::DeviceQueueCreateInfo queueCreateInfo;
+        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
         float priorities = 1.0;
+    
+        vk::DeviceQueueCreateInfo queueCreateInfo;
         queueCreateInfo.setPQueuePriorities(&priorities)
                        .setQueueCount(1)
                        .setQueueFamilyIndex(queueFamilyIndices.graphicsQueue.value());
-        createInfo.setQueueCreateInfos(queueCreateInfo);
-        //phyDevice.enumerateDeviceExtensionProperties
+        queueCreateInfos.push_back(queueCreateInfo); 
+        // 检查是否需要创建 present 队列
+        // 如果 graphics 队列和 present 队列不同，需要创建 present 队列
+        if (queueFamilyIndices.graphicsQueue.value() != queueFamilyIndices.presentQueue.value()) {
+            queueCreateInfo.setPQueuePriorities(&priorities)
+                           .setQueueCount(1)
+                           .setQueueFamilyIndex(queueFamilyIndices.presentQueue.value());
+            queueCreateInfos.push_back(queueCreateInfo);               
+        }
+        
+        createInfo.setQueueCreateInfos(queueCreateInfos)
+                  .setPEnabledExtensionNames(extensions);
         device = phyDevice.createDevice(createInfo);
     }
 
     void Context::queryQueueFamilyIndices() {
         auto properties = phyDevice.getQueueFamilyProperties();
-        for (int i = 0; i<properties.size(); ++i) {
+        for (std::size_t i = 0; i < properties.size(); ++i) {
             const auto& property = properties[i];
-            //找到图形队列家族
+            //鎵惧埌鍥惧舰闃熷垪瀹舵棌
             if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
-                queueFamilyIndices.graphicsQueue = i;
+                queueFamilyIndices.graphicsQueue = static_cast<uint32_t>(i);
+            }
+            //鎵惧埌鍛堢幇闃熷垪瀹舵棌
+            if (phyDevice.getSurfaceSupportKHR(i, surface)) {
+                queueFamilyIndices.presentQueue = static_cast<uint32_t>(i);
+            }
+            if (queueFamilyIndices) {
                 break;
             }
         }
@@ -151,5 +178,6 @@ namespace toy2d {
 
     void Context::getQueues() {
         graphicsQueue = device.getQueue(queueFamilyIndices.graphicsQueue.value(), 0);
+        presentQueue = device.getQueue(queueFamilyIndices.presentQueue.value(), 0);
     }
 }

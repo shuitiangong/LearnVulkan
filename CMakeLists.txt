@@ -57,6 +57,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/toy2d.cpp
     src/context.cpp
+    src/swapchain.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
