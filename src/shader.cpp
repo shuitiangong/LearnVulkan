@@ -20,11 +20,27 @@ namespace toy2d {
         createInfo.codeSize = fragmentSource.size();
         createInfo.pCode = reinterpret_cast<const uint32_t*>(fragmentSource.data());
         fragmentModule = Context::GetInstance().device.createShaderModule(createInfo);
+
+        initStage();
     }
 
     Shader::~Shader() {
         auto& device = Context::GetInstance().device;
         device.destroyShaderModule(vertexModule);
         device.destroyShaderModule(fragmentModule);
+    }
+
+    std::vector<vk::PipelineShaderStageCreateInfo> Shader::GetStage() {
+        return stage_;
+    }
+
+    void Shader::initStage() {
+        stage_.resize(2);
+        stage_[0].setStage(vk::ShaderStageFlagBits::eVertex)
+                   .setModule(Shader::GetInstance().vertexModule)
+                   .setPName("main");
+        stage_[1].setStage(vk::ShaderStageFlagBits::eFragment)
+                   .setModule(Shader::GetInstance().fragmentModule)
+                   .setPName("main");
     }
 }

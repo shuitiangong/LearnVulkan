@@ -73,7 +73,7 @@ namespace toy2d {
 
     void Swapchain::createImageViews() {
         imageViews.resize(images.size());
-        for (int i = 0; i<images.size(); ++i) {
+        for (size_t i = 0; i<images.size(); ++i) {
             vk::ImageViewCreateInfo createInfo;
             vk::ComponentMapping mapping;
             vk::ImageSubresourceRange range;
@@ -89,4 +89,6 @@ namespace toy2d {
                       .setSubresourceRange(range);
             imageViews[i] = Context::GetInstance().device.createImageView(createInfo);                
         }
+    }
+}
             

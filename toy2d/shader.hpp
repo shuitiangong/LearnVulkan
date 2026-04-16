@@ -16,8 +16,14 @@ namespace toy2d {
 
         vk::ShaderModule vertexModule;
         vk::ShaderModule fragmentModule;
+
+        ~Shader();
+        std::vector<vk::PipelineShaderStageCreateInfo> GetStage();
     private:
         static std::unique_ptr<Shader> instance_;
+        std::vector<vk::PipelineShaderStageCreateInfo> stage_;
+    
         Shader(const std::string& vertexSource, const std::string& fragmentSource);
+        void initStage();
     };
 }

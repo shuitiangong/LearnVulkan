@@ -4,6 +4,7 @@
 #include <optional>
 #include <../toy2d/tool.hpp>
 #include <../toy2d/swapchain.hpp>
+#include <render_process.hpp>
 
 namespace toy2d {
     class Context final {
@@ -29,6 +30,7 @@ namespace toy2d {
             vk::Queue presentQueue;
             vk::SurfaceKHR surface;
             std::unique_ptr<Swapchain> swapchain;
+            std::unique_ptr<RenderProcess> renderProcess;
             VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
             QueueFamilyIndices queueFamilyIndices;
 

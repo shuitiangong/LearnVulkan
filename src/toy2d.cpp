@@ -7,10 +7,12 @@ namespace toy2d {
     void Init(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc, int w, int h) {
         Context::Init(extensions, createSurfaceFunc);
         Context::GetInstance().InitSwapchain(w, h);
-        Shader::Init();
+        Shader::Init(ReadWholeFile("shader.vert"), ReadWholeFile("shader.frag"));
+        Context::GetInstance().renderProcess->InitPipeline(w, h);
     }
 
     void Quit() {
+        Context::GetInstance().renderProcess->DestroyPipeline();
         Context::GetInstance().DestroySwapchain();
         Context::Quit();
         Shader::Quit();
