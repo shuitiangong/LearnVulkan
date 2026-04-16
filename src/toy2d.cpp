@@ -8,11 +8,12 @@ namespace toy2d {
         Context::Init(extensions, createSurfaceFunc);
         Context::GetInstance().InitSwapchain(w, h);
         Shader::Init(ReadWholeFile("shader.vert"), ReadWholeFile("shader.frag"));
+        Context::GetInstance().renderProcess->InitRenderPass();
         Context::GetInstance().renderProcess->InitPipeline(w, h);
     }
 
     void Quit() {
-        Context::GetInstance().renderProcess->DestroyPipeline();
+        Context::GetInstance().renderProcess.reset();
         Context::GetInstance().DestroySwapchain();
         Context::Quit();
         Shader::Quit();
