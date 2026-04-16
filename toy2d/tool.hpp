@@ -5,6 +5,9 @@
 #include <functional>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include <iostream>
+#include <fstream>
+#include <string>
 
 namespace toy2d {
     using CreateSurfaceFunc = std::function<vk::SurfaceKHR(vk::Instance)>;
@@ -24,5 +27,22 @@ namespace toy2d {
                 ++i;
             }
         }
+    }
+
+    std::string ReadWholeFile(const std::string& filename) {
+        std::ifstream file(filename, std::ios::binary|std::ios::ate);
+
+        if (!file.is_open()) {
+            std::cout << "read " << filename << " fail" << std::endl;
+            return std::string{};
+        }
+
+        auto size = file.tellg();
+        std::string content;
+        content.resize(size);
+        file.seekg(0);
+        file.read(&content[0], size);
+        file.close();
+        return content;
     }
 }

@@ -1,0 +1,30 @@
+#include <../toy2d/shader.hpp>
+#include <../toy2d/Context.hpp>
+
+namespace toy2d {
+    std::unique_ptr<Shader> Shader::instance_ = nullptr;
+    void Shader::Init(const std::string& vertexSource, const std::string& fragmentSource) {
+        instance_.reset(new Shader(vertexSource, fragmentSource));
+    }
+
+    void Shader::Quit() {
+        instance_.reset(nullptr);
+    }
+
+    Shader::Shader(const std::string& vertexSource, const std::string& fragmentSource) {
+        vk::ShaderModuleCreateInfo createInfo;
+        createInfo.codeSize = vertexSource.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(vertexSource.data());
+        vertexModule = Context::GetInstance().device.createShaderModule(createInfo);
+        
+        createInfo.codeSize = fragmentSource.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(fragmentSource.data());
+        fragmentModule = Context::GetInstance().device.createShaderModule(createInfo);
+    }
+
+    Shader::~Shader() {
+        auto& device = Context::GetInstance().device;
+        device.destroyShaderModule(vertexModule);
+        device.destroyShaderModule(fragmentModule);
+    }
+}
