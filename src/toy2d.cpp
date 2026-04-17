@@ -7,19 +7,24 @@
 namespace toy2d {
     void Init(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc, int w, int h) {
         Context::Init(extensions, createSurfaceFunc);
-        Context::GetInstance().InitSwapchain(w, h);
+        auto& ContextInstance = Context::GetInstance();
+        ContextInstance.InitSwapchain(w, h);
 
         Shader::Init("shader/shader.vert.spv", "shader/shader.frag.spv");
-        Context::GetInstance().renderProcess->InitRenderPass();
-        Context::GetInstance().renderProcess->InitLayout();
-        Context::GetInstance().swapchain->CreateFramebuffers(w, h);
-        Context::GetInstance().renderProcess->InitPipeline(w, h);
+        ContextInstance.renderProcess->InitRenderPass();
+        ContextInstance.renderProcess->InitLayout();
+        ContextInstance.swapchain->CreateFramebuffers(w, h);
+        ContextInstance.renderProcess->InitPipeline(w, h);
+        ContextInstance.InitRenderer();
     }
 
     void Quit() {
-        Context::GetInstance().renderProcess.reset();
+        auto& ContextInstance = Context::GetInstance();
+        ContextInstance.device.waitIdle();
+        ContextInstance.renderer.reset();
+        ContextInstance.renderProcess.reset();
         Shader::Quit();
-        Context::GetInstance().DestroySwapchain();
+        ContextInstance.DestroySwapchain();
         Context::Quit();
     }
 }

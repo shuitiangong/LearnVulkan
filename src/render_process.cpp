@@ -33,7 +33,7 @@ namespace toy2d {
         vk::PipelineRasterizationStateCreateInfo rastInfo;
         rastInfo.setRasterizerDiscardEnable(false)
                 .setCullMode(vk::CullModeFlagBits::eBack)
-                .setFrontFace(vk::FrontFace::eCounterClockwise)
+                .setFrontFace(vk::FrontFace::eClockwise)
                 .setPolygonMode(vk::PolygonMode::eFill)
                 .setLineWidth(1.0f);
         createInfo.setPRasterizationState(&rastInfo);
