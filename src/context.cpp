@@ -55,7 +55,8 @@ namespace toy2d {
     
         vk::ApplicationInfo appInfo;
         appInfo.setPApplicationName("Toy2D")
-               .setApplicationVersion(VK_API_VERSION_1_4);
+               .setApplicationVersion(1)
+               .setApiVersion(VK_API_VERSION_1_4);
 
         createInfo.setPApplicationInfo(&appInfo)
                   .setPEnabledLayerNames(layers)

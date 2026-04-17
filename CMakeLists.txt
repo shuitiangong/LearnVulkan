@@ -58,11 +58,94 @@ add_executable(${PROJECT_NAME}
     src/toy2d.cpp
     src/context.cpp
     src/swapchain.cpp
+    src/shader.cpp
+    src/render_process.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+set(TOY2D_SHADER_SOURCES "shader.vert;shader.frag" CACHE STRING
+    "Semicolon-separated GLSL shader files (relative to ${CMAKE_CURRENT_SOURCE_DIR}/shader), e.g. triangle.vert;triangle.frag"
+)
+option(TOY2D_COMPILE_SHADERS "Compile and copy shaders for runtime" ON)
+
+if(TOY2D_COMPILE_SHADERS AND TOY2D_SHADER_SOURCES STREQUAL "")
+    set(TOY2D_SHADER_SOURCES "shader.vert;shader.frag")
+endif()
+
+if(TOY2D_SHADER_SOURCES)
+    set(GLSLC_EXECUTABLE "${Vulkan_GLSLC_EXECUTABLE}")
+    if(NOT GLSLC_EXECUTABLE)
+        find_program(GLSLC_EXECUTABLE
+            NAMES glslc glslc.exe
+            HINTS
+                "${VULKAN_SDK_ROOT}/Bin"
+                "$ENV{VULKAN_SDK}/Bin"
+        )
+    endif()
+
+    if(NOT GLSLC_EXECUTABLE)
+        message(FATAL_ERROR
+            "Could not find glslc. Please install Vulkan SDK or set GLSLC_EXECUTABLE manually."
+        )
+    endif()
+
+    set(TOY2D_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shader")
+    set(TOY2D_SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/shader_spv")
+    set(TOY2D_SHADER_DEPENDS "")
+    set(TOY2D_SHADER_OUTPUTS "")
+
+    foreach(shader IN LISTS TOY2D_SHADER_SOURCES)
+        if(IS_ABSOLUTE "${shader}")
+            set(shader_source "${shader}")
+            file(RELATIVE_PATH shader_rel "${TOY2D_SHADER_DIR}" "${shader_source}")
+        else()
+            set(shader_rel "${shader}")
+            set(shader_source "${TOY2D_SHADER_DIR}/${shader_rel}")
+        endif()
+
+        if(shader_rel MATCHES "^\\.\\.")
+            message(FATAL_ERROR "Shader '${shader}' must be inside ${TOY2D_SHADER_DIR}")
+        endif()
+
+        if(NOT EXISTS "${shader_source}")
+            message(FATAL_ERROR "Shader source does not exist: ${shader_source}")
+        endif()
+
+        list(APPEND TOY2D_SHADER_DEPENDS "${shader_source}")
+        list(APPEND TOY2D_SHADER_OUTPUTS "${TOY2D_SHADER_OUTPUT_DIR}/${shader_rel}.spv")
+    endforeach()
+
+    string(REPLACE ";" "\\;" TOY2D_SHADER_SOURCES_ARG "${TOY2D_SHADER_SOURCES}")
+
+    add_custom_command(
+        OUTPUT ${TOY2D_SHADER_OUTPUTS}
+        COMMAND ${CMAKE_COMMAND}
+            -DGLSLC_EXECUTABLE=${GLSLC_EXECUTABLE}
+            -DSHADER_DIR=${TOY2D_SHADER_DIR}
+            -DOUTPUT_DIR=${TOY2D_SHADER_OUTPUT_DIR}
+            -DSHADERS=${TOY2D_SHADER_SOURCES_ARG}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/compile_glsl.cmake
+        DEPENDS
+            ${TOY2D_SHADER_DEPENDS}
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/compile_glsl.cmake"
+        COMMENT "Compiling GLSL shaders"
+        VERBATIM
+    )
+
+    add_custom_target(compile_shaders ALL DEPENDS ${TOY2D_SHADER_OUTPUTS})
+    add_dependencies(${PROJECT_NAME} compile_shaders)
+
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shader"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${TOY2D_SHADER_OUTPUTS}
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shader"
+        COMMENT "Copying compiled shaders to runtime directory"
+    )
+endif()
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE

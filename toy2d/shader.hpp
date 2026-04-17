@@ -1,12 +1,15 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace toy2d {
     class Shader final {
     public:
-        static void Init(const std::string& vertexSource, const std::string& fragmentSource);
+        static void Init(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragmentSource);
+        static void Init(const std::string& vertexPath, const std::string& fragmentPath);
         static void Quit();
 
         static Shader& GetInstance() {
@@ -23,7 +26,7 @@ namespace toy2d {
         static std::unique_ptr<Shader> instance_;
         std::vector<vk::PipelineShaderStageCreateInfo> stage_;
     
-        Shader(const std::string& vertexSource, const std::string& fragmentSource);
+        Shader(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragmentSource);
         void initStage();
     };
 }
