@@ -1,5 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
+#include <vector>
 namespace toy2d {
     class Renderer final {
     public:
@@ -12,7 +13,7 @@ namespace toy2d {
         vk::CommandBuffer cmdBuf_;
 
         vk::Semaphore imageAvaliable_;
-        vk::Semaphore imageDrawFinish_;
+        std::vector<vk::Semaphore> imageDrawFinish_;
         vk::Fence cmdAvaliableFence_;
 
         void initCmdPool();    

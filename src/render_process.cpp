@@ -50,10 +50,12 @@ namespace toy2d {
         vk::PipelineColorBlendStateCreateInfo blend;
         vk::PipelineColorBlendAttachmentState attachs;
         attachs.setBlendEnable(false)
-               .setColorWriteMask(vk::ColorComponentFlagBits::eA)
-               .setColorWriteMask(vk::ColorComponentFlagBits::eR)
-               .setColorWriteMask(vk::ColorComponentFlagBits::eG)
-               .setColorWriteMask(vk::ColorComponentFlagBits::eB);
+               .setColorWriteMask(
+                    vk::ColorComponentFlagBits::eR |
+                    vk::ColorComponentFlagBits::eG |
+                    vk::ColorComponentFlagBits::eB |
+                    vk::ColorComponentFlagBits::eA
+                );
         
         blend.setLogicOpEnable(false)
               .setAttachments(attachs);
@@ -80,7 +82,7 @@ namespace toy2d {
         vk::AttachmentDescription attachDesc;
         attachDesc.setFormat(Context::GetInstance().swapchain->info.format.format)
                   .setInitialLayout(vk::ImageLayout::eUndefined)
-                  .setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                  .setFinalLayout(vk::ImageLayout::ePresentSrcKHR)
                   .setLoadOp(vk::AttachmentLoadOp::eClear)
                   .setStoreOp(vk::AttachmentStoreOp::eStore)
                   .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
