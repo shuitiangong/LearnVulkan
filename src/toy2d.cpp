@@ -12,6 +12,7 @@ namespace toy2d {
         Shader::Init("shader/shader.vert.spv", "shader/shader.frag.spv");
         Context::GetInstance().renderProcess->InitRenderPass();
         Context::GetInstance().renderProcess->InitLayout();
+        Context::GetInstance().swapchain->CreateFramebuffers(w, h);
         Context::GetInstance().renderProcess->InitPipeline(w, h);
     }
 
