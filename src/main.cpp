@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
             return vk::SurfaceKHR(surface);
         }, 1024, 720);
 
-        auto& renderer = toy2d::GetRenderer();
+        auto renderer = toy2d::GetRenderer();
         
         while (!shouldClose) {
             while (SDL_PollEvent(&event)) {
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
                 }
             }
 
-            renderer.Render();
+            renderer->DrawTriangle();
         }
         toy2d::Quit();
     } catch (const std::exception& exception) {

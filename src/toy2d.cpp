@@ -1,30 +1,30 @@
 #include "../toy2d/toy2d.hpp"
 #include "../toy2d/Context.hpp"
 #include "../toy2d/swapchain.hpp"
-#include <../toy2d/shader.hpp>
 #include <stdexcept>
 
 namespace toy2d {
-    void Init(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc, int w, int h) {
-        Context::Init(extensions, createSurfaceFunc);
-        auto& ContextInstance = Context::GetInstance();
-        ContextInstance.InitSwapchain(w, h);
+    std::unique_ptr<Renderer> renderer_;
 
-        Shader::Init("shader/shader.vert.spv", "shader/shader.frag.spv");
-        ContextInstance.renderProcess->InitRenderPass();
-        ContextInstance.renderProcess->InitLayout();
-        ContextInstance.swapchain->CreateFramebuffers(w, h);
-        ContextInstance.renderProcess->InitPipeline(w, h);
-        ContextInstance.InitRenderer();
+    void Init(const std::vector<const char*>& extensions, Context::GetSurfaceCallback getSurfaceCb, int windowWidth, int windowHeight) {
+        Context::Init(extensions, getSurfaceCb);
+        auto& ctx = Context::Instance();
+        ctx.initSwapchain(windowWidth, windowHeight);
+        ctx.initRenderProcess();
+        ctx.initGraphicsPipeline();
+        ctx.swapchain->InitFramebuffers();
+        ctx.initCommandPool();
+
+        renderer_ = std::make_unique<Renderer>();
+    }
+
+    Renderer* GetRenderer() {
+        return renderer_.get();
     }
 
     void Quit() {
-        auto& ContextInstance = Context::GetInstance();
-        ContextInstance.device.waitIdle();
-        ContextInstance.renderer.reset();
-        ContextInstance.renderProcess.reset();
-        Shader::Quit();
-        ContextInstance.DestroySwapchain();
+        toy2d::Context::Instance().device.waitIdle();
+        renderer_.reset();
         Context::Quit();
     }
 }

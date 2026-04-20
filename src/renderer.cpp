@@ -4,119 +4,115 @@
 #include <limits>
 
 namespace toy2d {
-    Renderer::Renderer() {
-        initCmdPool();
-        allocCmdBuf();
-        createSems();
-        createFence();
+    Renderer::Renderer(int maxFlightCount): maxFlightCount_(maxFlightCount), curFrame_(0) {
+        createFences();
+        createSemaphores();
+        createCmdBuffers();
     }
 
     Renderer::~Renderer() {
-        auto& device = Context::GetInstance().device;
-        device.freeCommandBuffers(cmdPool_, cmdBuf_);
-        device.destroyCommandPool(cmdPool_);
-        device.destroySemaphore(imageAvaliable_);
-        for (const auto& sem : imageDrawFinish_) {
+        auto& device = Context::Instance().device;
+        for (auto& sem : imageAvaliableSems_) {
             device.destroySemaphore(sem);
         }
-        device.destroyFence(cmdAvaliableFence_);
+        for (auto& sem : renderFinishSems_) {
+            device.destroySemaphore(sem);
+        }
+        for (auto& fence : cmdAvaliableFences_) {
+            device.destroyFence(fence);
+        }
     }
 
-    void Renderer::initCmdPool() {
-        vk::CommandPoolCreateInfo createInfo;
-        createInfo.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-        cmdPool_ = Context::GetInstance().device.createCommandPool(createInfo);
-    }
+    void Renderer::DrawTriangle() {
+        auto& ctx = Context::Instance();
+        auto& device = ctx.device;
+        auto& renderProcess = ctx.renderProcess;
+        auto& swapchain = ctx.swapchain;
+        if (device.waitForFences({cmdAvaliableFences_[curFrame_]}, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
+            throw std::runtime_error("wait for fence failed");
+        }
+        device.resetFences({cmdAvaliableFences_[curFrame_]});
 
-    void Renderer::allocCmdBuf() {
-        vk::CommandBufferAllocateInfo allocInfo;
-        allocInfo.setCommandPool(cmdPool_)
-                 .setCommandBufferCount(1)
-                 .setLevel(vk::CommandBufferLevel::ePrimary);
-        cmdBuf_ = Context::GetInstance().device.allocateCommandBuffers(allocInfo)[0];
-    }
-
-    void Renderer::Render() {
-        auto& device = Context::GetInstance().device;
-        auto& renderProcess = Context::GetInstance().renderProcess;
-        auto& swapchain = Context::GetInstance().swapchain;
-        /*
-            Semaphore - GPU internal; Queue - Queue
-            Fence - CPU - GPU
-        */
         // Acquire an available swapchain image.
         auto result = device.acquireNextImageKHR(
             swapchain->swapchain,
             std::numeric_limits<uint64_t>::max(),
-            imageAvaliable_
+            imageAvaliableSems_[curFrame_]
         );
         if (result.result != vk::Result::eSuccess) {
-            std::cout << "AcquireNextImageKHR failed: " << result.result << '\n';
+            throw std::runtime_error("wait for image in swapchain failed");
         }
-
         auto imageIndex = result.value;
-        cmdBuf_.reset();
-        vk::CommandBufferBeginInfo begin;
-        begin.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        cmdBuf_.begin(begin);
-        {
-            vk::RenderPassBeginInfo renderPassBegin;
-            vk::Rect2D area;
-            vk::ClearValue clearValue;
-            clearValue.color = vk::ClearColorValue(0.1f, 0.1f, 0.1f, 1.0f);
-            area.setOffset({0, 0})
-                .setExtent(swapchain->info.imageExtent);
 
-            // Framebuffer binds concrete image views; render pass describes attachment rules.
-            renderPassBegin.setRenderPass(renderProcess->renderPass)
-                           .setRenderArea(area)
-                           .setFramebuffer(swapchain->framebuffers[imageIndex])
-                           .setClearValues(clearValue);
-            cmdBuf_.beginRenderPass(renderPassBegin, {});
-            {
-                cmdBuf_.bindPipeline(vk::PipelineBindPoint::eGraphics, renderProcess->pipeline);
-                cmdBuf_.draw(3, 1, 0, 0);
-            }
-            cmdBuf_.endRenderPass();
-        }
-        cmdBuf_.end();
+        auto& cmdMgr = ctx.commandManager;
+        cmdBufs_[curFrame_].reset();
+
+        vk::CommandBufferBeginInfo beginInfo;
+        beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBufs_[curFrame_].begin(beginInfo);
+        vk::ClearValue clearValue;
+        clearValue.color = vk::ClearColorValue(0.1f, 0.1f, 0.1f, 1.0f);
+        vk::RenderPassBeginInfo renderPassBegin;
+        renderPassBegin.setRenderPass(renderProcess->renderPass)
+                       .setFramebuffer(swapchain->framebuffers[imageIndex])
+                       .setClearValues(clearValue)
+                       .setRenderArea(vk::Rect2D({}, swapchain->GetExtent()));
+        cmdBufs_[curFrame_].beginRenderPass(&renderPassBegin, vk::SubpassContents::eInline);
+        cmdBufs_[curFrame_].bindPipeline(vk::PipelineBindPoint::eGraphics, ctx.renderProcess->graphicsPipeline);
+        cmdBufs_[curFrame_].draw(3, 1, 0, 0);
+        cmdBufs_[curFrame_].endRenderPass();
+        cmdBufs_[curFrame_].end();
 
         vk::SubmitInfo submit;
-        constexpr vk::PipelineStageFlags waitDstStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        submit.setCommandBuffers(cmdBuf_)
-              .setWaitSemaphores(imageAvaliable_)
-              .setWaitDstStageMask(waitDstStage)
-              .setSignalSemaphores(imageDrawFinish_[imageIndex]);
-        Context::GetInstance().graphicsQueue.submit(submit, cmdAvaliableFence_);
+        vk::PipelineStageFlags flags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        submit.setCommandBuffers(cmdBufs_[curFrame_])
+            .setWaitSemaphores(imageAvaliableSems_[curFrame_])
+            .setWaitDstStageMask(flags)
+            .setSignalSemaphores(renderFinishSems_[imageIndex]);
+        ctx.graphicsQueue.submit(submit, cmdAvaliableFences_[curFrame_]);
 
-        vk::PresentInfoKHR present;
-        present.setImageIndices(imageIndex)
-               .setSwapchains(swapchain->swapchain)
-               .setWaitSemaphores(imageDrawFinish_[imageIndex]);
-
-        if (Context::GetInstance().presentQueue.presentKHR(present) != vk::Result::eSuccess) {
-            std::cout << "imagee presentKHR failed: " << result.result << '\n';
+        vk::PresentInfoKHR presentInfo;
+        presentInfo.setWaitSemaphores(renderFinishSems_[imageIndex])
+                .setSwapchains(swapchain->swapchain)
+                .setImageIndices(imageIndex);
+        if (ctx.presentQueue.presentKHR(presentInfo) != vk::Result::eSuccess) {
+            throw std::runtime_error("present queue execute failed");
         }
 
-        if (Context::GetInstance().device.waitForFences(
-            cmdAvaliableFence_, true, std::numeric_limits<uint64_t>::max()) != vk::Result::eSuccess) {
-            std::cout << "waitForFences failed: " << result.result << '\n';
-        }
-
-        Context::GetInstance().device.resetFences(cmdAvaliableFence_);
+        curFrame_ = (curFrame_ + 1) % maxFlightCount_;
     }
 
-    void Renderer::createSems() {
-        vk::SemaphoreCreateInfo createInfo;
-        imageAvaliable_ = Context::GetInstance().device.createSemaphore(createInfo);
-        imageDrawFinish_.resize(Context::GetInstance().swapchain->images.size());
-        for (auto& sem : imageDrawFinish_) {
-            sem = Context::GetInstance().device.createSemaphore(createInfo);
+    void Renderer::createFences() {
+        cmdAvaliableFences_.resize(maxFlightCount_, nullptr);
+
+        for (auto& fence : cmdAvaliableFences_) {
+            vk::FenceCreateInfo fenceCreateInfo;
+            fenceCreateInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
+            fence = Context::Instance().device.createFence(fenceCreateInfo);
         }
     }
 
-    void Renderer::createFence() {
-        vk::FenceCreateInfo createInfo;
-        cmdAvaliableFence_ = Context::GetInstance().device.createFence(createInfo);
+    void Renderer::createSemaphores() {
+        auto& device = Context::Instance().device;
+        vk::SemaphoreCreateInfo info;
+
+        imageAvaliableSems_.resize(maxFlightCount_);
+        renderFinishSems_.resize(maxFlightCount_);
+
+        for (auto& sem : imageAvaliableSems_) {
+            sem = device.createSemaphore(info);
+        }
+
+        for (auto& sem : renderFinishSems_) {
+            sem = device.createSemaphore(info);
+        }
+    }
+
+    void Renderer::createCmdBuffers() {
+        cmdBufs_.resize(maxFlightCount_);
+
+        for (auto& cmd : cmdBufs_) {
+            cmd = Context::Instance().commandManager->CreateOneCommandBuffer();
+        }
     }
 }

@@ -54,12 +54,14 @@ set(SDL_RUNTIME_DLL "${VULKAN_SDK_ROOT}/Bin/SDL3.dll")
 message(STATUS "Using SDL3 from ${VULKAN_SDK_ROOT}")
 
 add_executable(${PROJECT_NAME}
+    src/command_manager.cpp
     src/main.cpp
     src/toy2d.cpp
+    src/tool.cpp
     src/context.cpp
     src/swapchain.cpp
-    src/shader.cpp
     src/render_process.cpp
+    src/renderer.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

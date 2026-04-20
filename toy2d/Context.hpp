@@ -4,24 +4,22 @@
 #include <optional>
 #include <../toy2d/tool.hpp>
 #include <../toy2d/swapchain.hpp>
+#include <../toy2d/command_manager.hpp>
 #include <render_process.hpp>
 #include <renderer.hpp>
 
 namespace toy2d {
     class Context final {
         public:
-            static void Init(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc);
+            using GetSurfaceCallback = std::function<vk::SurfaceKHR(vk::Instance)>;
+            friend void Init(const std::vector<const char*>& extensions, GetSurfaceCallback, int, int);
+            static void Init(const std::vector<const char*>& extensions, GetSurfaceCallback);
             static void Quit();
-            static Context& GetInstance();
+            static Context& Instance();
 
-            ~Context();
-
-            struct QueueFamilyIndices final {
-                std::optional<uint32_t> graphicsQueue;
-                std::optional<uint32_t> presentQueue;
-                operator bool () const {
-                    return graphicsQueue.has_value() && presentQueue.has_value();
-                }
+            struct QueueInfo {
+                std::optional<uint32_t> graphicsIndex;
+                std::optional<uint32_t> presentIndex;
             };
 
             vk::Instance instance;
@@ -29,37 +27,33 @@ namespace toy2d {
             vk::Device device;
             vk::Queue graphicsQueue;
             vk::Queue presentQueue;
-            vk::SurfaceKHR surface;
             std::unique_ptr<Swapchain> swapchain;
             std::unique_ptr<RenderProcess> renderProcess;
-            std::unique_ptr<Renderer> renderer;
+            std::unique_ptr<CommandManager> commandManager;
             VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
-            QueueFamilyIndices queueFamilyIndices;
+            QueueInfo queueInfo;
 
-            void InitSwapchain(int w, int h) {
-                swapchain.reset(new Swapchain(w, h));
-            }
-
-            void DestroySwapchain() {
-                swapchain.reset();
-            }
-
-            void InitRenderer() {
-                renderer.reset(new Renderer());
-            }
         private:
-            static std::unique_ptr<Context> instance_;
+            static Context* instance_;
+            vk::SurfaceKHR surface_;
 
-            Context(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc);
+            GetSurfaceCallback getSurfaceCb_ = nullptr;
 
-            void CreateInstance(const std::vector<const char*> extensions);
-            void pickupPhyiscalDevice();
-            void createDevice();
-            void getQueues();
+            Context(const std::vector<const char*>& extensions, GetSurfaceCallback);
+            ~Context();
+
+            void initRenderProcess();
+            void initSwapchain(int windowWidth, int windowHeight);
+            void initGraphicsPipeline();
+            void initCommandPool();
+
+            vk::Instance createInstance(const std::vector<const char*>& extensions);
+            vk::PhysicalDevice pickupPhysicalDevice();
+            vk::Device createDevice(vk::SurfaceKHR);
+            
+            void queryQueueInfo(vk::SurfaceKHR);
             void setupDebugUtilsMessenger();
             void destroyDebugUtilsMessenger();
-
-            void queryQueueFamilyIndices();
 
             static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
                 VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

@@ -6,66 +6,147 @@
 #include <functional>
 namespace toy2d {
 
-    std::unique_ptr<Context> Context::instance_ = nullptr;
+    Context* Context::instance_ = nullptr;
 
-    void Context::Init(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc) {
-        instance_.reset(new Context(extensions, createSurfaceFunc));
+    void Context::Init(const std::vector<const char*>& extensions, GetSurfaceCallback cb) {
+        instance_ = new Context(extensions, cb);
     }
 
     void Context::Quit() {
-        instance_.reset(nullptr);
+        delete instance_;
     }
 
-    Context& Context::GetInstance() {
+    Context& Context::Instance() {
         assert(instance_);
         return *instance_;
     }
 
-    Context::Context(const std::vector<const char*> extensions, CreateSurfaceFunc createSurfaceFunc) {
-        CreateInstance(extensions);
-        setupDebugUtilsMessenger();
-        pickupPhyiscalDevice();
-        surface = createSurfaceFunc(instance);
-        queryQueueFamilyIndices();
-        createDevice();
-        getQueues();
-        renderProcess.reset(new RenderProcess());
+    Context::Context(const std::vector<const char*>& extensions, GetSurfaceCallback cb) {
+        getSurfaceCb_ = cb;
+
+        instance = createInstance(extensions);
+        if (!instance) {
+            std::cout << "instance create failed" << std::endl;
+            exit(1);
+        }
+
+        phyDevice = pickupPhysicalDevice();
+        if (!phyDevice) {
+            std::cout << "pickup physical device failed" << std::endl;
+            exit(1);
+        }
+
+        surface_ = getSurfaceCb_(instance);
+        if (!surface_) {
+            std::cout << "create surface failed" << std::endl;
+            exit(1);
+        }
+
+        device = createDevice(surface_);
+        if (!device) {
+            std::cout << "create device failed" << std::endl;
+            exit(1);
+        }
+
+        graphicsQueue = device.getQueue(queueInfo.graphicsIndex.value(), 0);
+        presentQueue = device.getQueue(queueInfo.presentIndex.value(), 0);
     }
 
-    Context::~Context() {
-        // surface is created from instance, not from SDL
-        instance.destroySurfaceKHR(surface);
-        device.destroy();
-        destroyDebugUtilsMessenger();
-        instance.destroy();
-    }
-
-    void Context::CreateInstance(const std::vector<const char*> extensions) {
-        vk::InstanceCreateInfo createInfo;
+    vk::Instance Context::createInstance(const std::vector<const char*>& extensions) {
+        vk::InstanceCreateInfo info; 
+        vk::ApplicationInfo appInfo;
         std::vector<const char*> layers = {"VK_LAYER_KHRONOS_validation"};
         std::vector<const char*> enabledExtensions = extensions;
         enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        // RemoveNosupportedElemes(extensions, debugExtensions, [](const char* ext, const char* debugExt) {
-        //     return std::strcmp(ext, debugExt) == 0;
-        // });
-        // auto layers = vk::enumerateInstanceLayerProperties();
-        // for (const auto& layer : layers) {
-        //     std::cout << layer.layerName << std::endl;
-        // }
-    
-        vk::ApplicationInfo appInfo;
+
         appInfo.setPApplicationName("Toy2D")
                .setApplicationVersion(1)
                .setApiVersion(VK_API_VERSION_1_4);
+        info.setPApplicationInfo(&appInfo)
+            .setPEnabledLayerNames(layers)
+            .setPEnabledExtensionNames(enabledExtensions);
 
-        createInfo.setPApplicationInfo(&appInfo)
-                  .setPEnabledLayerNames(layers)
-                  .setPEnabledExtensionNames(enabledExtensions);
-        
-        instance = vk::createInstance(createInfo);
+        return vk::createInstance(info);
     }
 
-    VKAPI_ATTR VkBool32 VKAPI_CALL Context::DebugCallback(
+    vk::PhysicalDevice Context::pickupPhysicalDevice() {
+        auto devices = instance.enumeratePhysicalDevices();
+        if (devices.empty()) {
+            throw std::runtime_error("No Vulkan physical devices found.");
+        }
+
+        phyDevice = devices.front();
+        for (const auto& device : devices) {
+            const auto properties = device.getProperties();
+            if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+                phyDevice = device;
+                break;
+            }
+        }
+
+        std::cout << phyDevice.getProperties().deviceName << std::endl;
+        return phyDevice;
+    }
+
+    vk::Device Context::createDevice(vk::SurfaceKHR surface) {
+        vk::DeviceCreateInfo deviceCreateInfo;
+        queryQueueInfo(surface);
+
+        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+        float priorities = 1.0;
+        vk::DeviceQueueCreateInfo queueCreateInfo;
+        queueCreateInfo.setPQueuePriorities(&priorities)
+                       .setQueueCount(1)
+                       .setQueueFamilyIndex(queueInfo.graphicsIndex.value());
+        queueCreateInfos.push_back(queueCreateInfo); 
+        // Check whether a separate present queue is needed.
+        // If graphics and present queues differ, create both queue infos.
+        if (queueInfo.graphicsIndex.value() != queueInfo.presentIndex.value()) {
+            queueCreateInfo.setPQueuePriorities(&priorities)
+                           .setQueueCount(1)
+                           .setQueueFamilyIndex(queueInfo.presentIndex.value());
+            queueCreateInfos.push_back(queueCreateInfo);               
+        }
+        
+        std::array extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
+                        .setPEnabledExtensionNames(extensions);
+        return phyDevice.createDevice(deviceCreateInfo);
+    }
+
+    void Context::queryQueueInfo(vk::SurfaceKHR surface) {
+        auto properties = phyDevice.getQueueFamilyProperties();
+        for (std::size_t i = 0; i < properties.size(); ++i) {
+            const auto& property = properties[i];
+            // graphics queue
+            if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
+                queueInfo.graphicsIndex = static_cast<uint32_t>(i);
+            }
+            // present queue
+            if (phyDevice.getSurfaceSupportKHR(i, surface)) {
+                queueInfo.presentIndex = static_cast<uint32_t>(i);
+            }
+            if (queueInfo.graphicsIndex.has_value() && queueInfo.presentIndex) {
+                break;
+            }
+        }
+    }
+
+    void Context::initSwapchain(int windowWidth, int windowHeight) {
+        swapchain = std::make_unique<Swapchain>(surface_, windowWidth, windowHeight);
+    }
+
+    void Context::initRenderProcess() {
+        renderProcess = std::make_unique<RenderProcess>();
+    }
+
+    void Context::initGraphicsPipeline() {
+        auto vertexSource = ReadSpvFile("shader/shader.vert.spv");
+        auto fragSource = ReadSpvFile("shader/shader.frag.spv");
+        renderProcess->RecreateGraphicsPipeline(vertexSource, fragSource);
+    }
+
+    VKAPI_ATTR VkBool32 VKAPI_CALL Context::DebugCallback (
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
@@ -117,69 +198,15 @@ namespace toy2d {
         debugMessenger = VK_NULL_HANDLE;
     }
 
-    void Context::pickupPhyiscalDevice() {
-        auto devices = instance.enumeratePhysicalDevices();
-        if (devices.empty()) {
-            throw std::runtime_error("No Vulkan physical devices found.");
-        }
-
-        phyDevice = devices.front();
-        for (const auto& device : devices) {
-            const auto properties = device.getProperties();
-            if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
-                phyDevice = device;
-                break;
-            }
-        }
-
-        std::cout << phyDevice.getProperties().deviceName << std::endl;
+    void Context::initCommandPool() {
+        commandManager = std::make_unique<CommandManager>();
     }
 
-    void Context::createDevice() {
-        std::array extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-        vk::DeviceCreateInfo createInfo;
-        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-        float priorities = 1.0;
-    
-        vk::DeviceQueueCreateInfo queueCreateInfo;
-        queueCreateInfo.setPQueuePriorities(&priorities)
-                       .setQueueCount(1)
-                       .setQueueFamilyIndex(queueFamilyIndices.graphicsQueue.value());
-        queueCreateInfos.push_back(queueCreateInfo); 
-        // Check whether a separate present queue is needed.
-        // If graphics and present queues differ, create both queue infos.
-        if (queueFamilyIndices.graphicsQueue.value() != queueFamilyIndices.presentQueue.value()) {
-            queueCreateInfo.setPQueuePriorities(&priorities)
-                           .setQueueCount(1)
-                           .setQueueFamilyIndex(queueFamilyIndices.presentQueue.value());
-            queueCreateInfos.push_back(queueCreateInfo);               
-        }
-        
-        createInfo.setQueueCreateInfos(queueCreateInfos)
-                  .setPEnabledExtensionNames(extensions);
-        device = phyDevice.createDevice(createInfo);
-    }
-
-    void Context::queryQueueFamilyIndices() {
-        auto properties = phyDevice.getQueueFamilyProperties();
-        for (std::size_t i = 0; i < properties.size(); ++i) {
-            const auto& property = properties[i];
-            // graphics queue
-            if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
-                queueFamilyIndices.graphicsQueue = static_cast<uint32_t>(i);
-            }
-            // present queue
-            if (phyDevice.getSurfaceSupportKHR(i, surface)) {
-                queueFamilyIndices.presentQueue = static_cast<uint32_t>(i);
-            }
-            if (queueFamilyIndices) {
-                break;
-            }
-        }
-    }
-
-    void Context::getQueues() {
-        graphicsQueue = device.getQueue(queueFamilyIndices.graphicsQueue.value(), 0);
-        presentQueue = device.getQueue(queueFamilyIndices.presentQueue.value(), 0);
+    Context::~Context() {
+        commandManager.reset();
+        renderProcess.reset();
+        swapchain.reset();
+        device.destroy();
+        instance.destroy();
     }
 }
