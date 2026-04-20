@@ -15,7 +15,7 @@ namespace toy2d {
         ctx.swapchain->InitFramebuffers();
         ctx.initCommandPool();
 
-        renderer_ = std::make_unique<Renderer>();
+        renderer_ = std::make_unique<Renderer>(ctx.swapchain->images.size());
     }
 
     Renderer* GetRenderer() {

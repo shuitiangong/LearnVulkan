@@ -4,7 +4,7 @@
 namespace toy2d {
     class Renderer final {
     public:
-        Renderer(int maxFlightCount = 3);
+        Renderer(int swapchainImageCount = 3);
         ~Renderer();
 
         void DrawTriangle();

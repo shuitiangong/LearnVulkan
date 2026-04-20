@@ -14,6 +14,7 @@ namespace toy2d {
 
     void Context::Quit() {
         delete instance_;
+        instance_ = nullptr;
     }
 
     Context& Context::Instance() {
@@ -29,6 +30,7 @@ namespace toy2d {
             std::cout << "instance create failed" << std::endl;
             exit(1);
         }
+        setupDebugUtilsMessenger();
 
         phyDevice = pickupPhysicalDevice();
         if (!phyDevice) {
@@ -206,7 +208,9 @@ namespace toy2d {
         commandManager.reset();
         renderProcess.reset();
         swapchain.reset();
+        instance.destroySurfaceKHR(surface_);
         device.destroy();
+        destroyDebugUtilsMessenger();
         instance.destroy();
     }
 }

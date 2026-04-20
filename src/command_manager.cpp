@@ -30,7 +30,7 @@ namespace toy2d {
 
         vk::CommandBufferAllocateInfo allocInfo;
         allocInfo.setCommandPool(pool_)
-                 .setCommandBufferCount(1)
+                 .setCommandBufferCount(count)
                  .setLevel(vk::CommandBufferLevel::ePrimary);
         return ctx.device.allocateCommandBuffers(allocInfo);         
     }

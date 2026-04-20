@@ -10,14 +10,13 @@ namespace toy2d {
 
     Swapchain::~Swapchain() {
         auto& ctx = Context::Instance();
-        for (auto& img : images) {
-            ctx.device.destroyImageView(img.view);
-        }
         for (auto& framebuffer : framebuffers) {
             Context::Instance().device.destroyFramebuffer(framebuffer);
         }
+        for (auto& img : images) {
+            ctx.device.destroyImageView(img.view);
+        }
         ctx.device.destroySwapchainKHR(swapchain);
-        ctx.instance.destroySurfaceKHR(surface);
     }
 
     void Swapchain::InitFramebuffers() {

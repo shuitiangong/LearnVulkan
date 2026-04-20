@@ -4,7 +4,7 @@
 #include <limits>
 
 namespace toy2d {
-    Renderer::Renderer(int maxFlightCount): maxFlightCount_(maxFlightCount), curFrame_(0) {
+    Renderer::Renderer(int swapchainImageCount): maxFlightCount_(swapchainImageCount), curFrame_(0) {
         createFences();
         createSemaphores();
         createCmdBuffers();
@@ -28,51 +28,62 @@ namespace toy2d {
         auto& device = ctx.device;
         auto& renderProcess = ctx.renderProcess;
         auto& swapchain = ctx.swapchain;
-        if (device.waitForFences({cmdAvaliableFences_[curFrame_]}, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
+        auto& cmdAvaliableFence = cmdAvaliableFences_[curFrame_];
+        auto& imageAvaliableSem = imageAvaliableSems_[curFrame_];
+        auto& cmdBuf = cmdBufs_[curFrame_];
+
+        if (device.waitForFences({cmdAvaliableFence}, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
             throw std::runtime_error("wait for fence failed");
         }
-        device.resetFences({cmdAvaliableFences_[curFrame_]});
 
         // Acquire an available swapchain image.
         auto result = device.acquireNextImageKHR(
             swapchain->swapchain,
             std::numeric_limits<uint64_t>::max(),
-            imageAvaliableSems_[curFrame_]
+            imageAvaliableSem
         );
         if (result.result != vk::Result::eSuccess) {
             throw std::runtime_error("wait for image in swapchain failed");
         }
-        auto imageIndex = result.value;
 
-        auto& cmdMgr = ctx.commandManager;
-        cmdBufs_[curFrame_].reset();
+        /*
+            如果 acquireNextImageKHR 返回了 eErrorOutOfDateKHR、eSuboptimalKHR 或其他导致你提前 return / throw 的情况
+            那么这个 fence 已经被 reset 成 unsignaled，但本帧没有 submit。
+         */
+        device.resetFences({cmdAvaliableFence});
+
+        auto imageIndex = result.value;
+        auto& renderFinishSem = renderFinishSems_[imageIndex];
+        auto& framebuffer = swapchain->framebuffers[imageIndex];
+
+        cmdBuf.reset();
 
         vk::CommandBufferBeginInfo beginInfo;
         beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        cmdBufs_[curFrame_].begin(beginInfo);
+        cmdBuf.begin(beginInfo);
         vk::ClearValue clearValue;
         clearValue.color = vk::ClearColorValue(0.1f, 0.1f, 0.1f, 1.0f);
         vk::RenderPassBeginInfo renderPassBegin;
         renderPassBegin.setRenderPass(renderProcess->renderPass)
-                       .setFramebuffer(swapchain->framebuffers[imageIndex])
+                       .setFramebuffer(framebuffer)
                        .setClearValues(clearValue)
                        .setRenderArea(vk::Rect2D({}, swapchain->GetExtent()));
-        cmdBufs_[curFrame_].beginRenderPass(&renderPassBegin, vk::SubpassContents::eInline);
-        cmdBufs_[curFrame_].bindPipeline(vk::PipelineBindPoint::eGraphics, ctx.renderProcess->graphicsPipeline);
-        cmdBufs_[curFrame_].draw(3, 1, 0, 0);
-        cmdBufs_[curFrame_].endRenderPass();
-        cmdBufs_[curFrame_].end();
+        cmdBuf.beginRenderPass(&renderPassBegin, vk::SubpassContents::eInline);
+        cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, ctx.renderProcess->graphicsPipeline);
+        cmdBuf.draw(3, 1, 0, 0);
+        cmdBuf.endRenderPass();
+        cmdBuf.end();
 
         vk::SubmitInfo submit;
         vk::PipelineStageFlags flags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        submit.setCommandBuffers(cmdBufs_[curFrame_])
-            .setWaitSemaphores(imageAvaliableSems_[curFrame_])
+        submit.setCommandBuffers(cmdBuf)
+            .setWaitSemaphores(imageAvaliableSem)
             .setWaitDstStageMask(flags)
-            .setSignalSemaphores(renderFinishSems_[imageIndex]);
-        ctx.graphicsQueue.submit(submit, cmdAvaliableFences_[curFrame_]);
+            .setSignalSemaphores(renderFinishSem);
+        ctx.graphicsQueue.submit(submit, cmdAvaliableFence);
 
         vk::PresentInfoKHR presentInfo;
-        presentInfo.setWaitSemaphores(renderFinishSems_[imageIndex])
+        presentInfo.setWaitSemaphores(renderFinishSem)
                 .setSwapchains(swapchain->swapchain)
                 .setImageIndices(imageIndex);
         if (ctx.presentQueue.presentKHR(presentInfo) != vk::Result::eSuccess) {

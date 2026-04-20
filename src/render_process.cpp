@@ -11,9 +11,9 @@ namespace toy2d {
 
     RenderProcess::~RenderProcess() {
         auto& ctx = Context::Instance();
+        ctx.device.destroyPipeline(graphicsPipeline);
         ctx.device.destroyRenderPass(renderPass);
         ctx.device.destroyPipelineLayout(layout);
-        ctx.device.destroyPipeline(graphicsPipeline);
     }
 
     void RenderProcess::RecreateGraphicsPipeline(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource) {
@@ -78,7 +78,7 @@ namespace toy2d {
 
         // 4. rasteraizer
         vk::PipelineRasterizationStateCreateInfo rasterInfo;
-        rasterInfo.setCullMode(vk::CullModeFlagBits::eFront)
+        rasterInfo.setCullMode(vk::CullModeFlagBits::eBack)
                 .setFrontFace(vk::FrontFace::eCounterClockwise)
                 .setDepthClampEnable(false)
                 .setLineWidth(1)
