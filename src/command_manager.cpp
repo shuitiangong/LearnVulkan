@@ -38,4 +38,8 @@ namespace toy2d {
     vk::CommandBuffer CommandManager::CreateOneCommandBuffer() {
         return CreateCommandBuffers(1)[0];
     }
+
+    void CommandManager::FreeCmd(vk::CommandBuffer cmd) {
+        Context::Instance().device.freeCommandBuffers(pool_, 1, &cmd);
+    }
 }

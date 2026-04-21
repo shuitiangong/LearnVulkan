@@ -11,6 +11,7 @@ namespace toy2d {
         vk::CommandBuffer CreateOneCommandBuffer();
         std::vector<vk::CommandBuffer> CreateCommandBuffers(std::uint32_t count);
         void ResetCmds();
+        void FreeCmd(vk::CommandBuffer cmd);
     private:
         vk::CommandPool pool_;
         vk::CommandPool createCommandPool();

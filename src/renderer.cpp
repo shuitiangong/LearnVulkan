@@ -4,13 +4,23 @@
 #include <limits>
 
 namespace toy2d {
+    const std::array<Vertex, 3> vertices = {
+        Vertex{-0.8f, 0.8f},
+        Vertex{0.8f, 0.8f},
+        Vertex{0.0f, -0.8f}
+    };
+
     Renderer::Renderer(int swapchainImageCount): maxFlightCount_(swapchainImageCount), curFrame_(0) {
         createFences();
         createSemaphores();
         createCmdBuffers();
+        createVertexBuffer();
+        createVertexData();
     }
 
     Renderer::~Renderer() {
+        hostVertexBuffer_.reset();
+        deviceVertexBuffer_.reset();
         auto& device = Context::Instance().device;
         for (auto& sem : imageAvaliableSems_) {
             device.destroySemaphore(sem);
@@ -70,6 +80,8 @@ namespace toy2d {
                        .setRenderArea(vk::Rect2D({}, swapchain->GetExtent()));
         cmdBuf.beginRenderPass(&renderPassBegin, vk::SubpassContents::eInline);
         cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, ctx.renderProcess->graphicsPipeline);
+        vk::DeviceSize offset = 0;
+        cmdBuf.bindVertexBuffers(0, {deviceVertexBuffer_->buffer}, offset);
         cmdBuf.draw(3, 1, 0, 0);
         cmdBuf.endRenderPass();
         cmdBuf.end();
@@ -125,5 +137,48 @@ namespace toy2d {
         for (auto& cmd : cmdBufs_) {
             cmd = Context::Instance().commandManager->CreateOneCommandBuffer();
         }
+    }
+
+    void Renderer::createVertexBuffer() {
+        //eHostVisible 用于主机直接访问
+        hostVertexBuffer_.reset(new Buffer(sizeof(vertices),
+                                       vk::BufferUsageFlagBits::eTransferSrc,
+                                       vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent
+                                        ));
+        //手动刷新同步
+        Context::Instance().device.flushMappedMemoryRanges({hostVertexBuffer_->memory});
+        //手动失效同步
+        Context::Instance().device.invalidateMappedMemoryRanges({hostVertexBuffer_->memory});
+
+        //eDeviceLocal 用于设备直接访问
+        deviceVertexBuffer_.reset(new Buffer(sizeof(vertices),
+                                       vk::BufferUsageFlagBits::eTransferDst|vk::BufferUsageFlagBits::eVertexBuffer,
+                                       vk::MemoryPropertyFlagBits::eDeviceLocal
+                                        ));
+        
+    }
+
+    void Renderer::createVertexData() {
+        void* ptr = Context::Instance().device.mapMemory(hostVertexBuffer_->memory, 0, hostVertexBuffer_->size);
+        memcpy(ptr, vertices.data(), sizeof(vertices));
+        Context::Instance().device.unmapMemory(hostVertexBuffer_->memory);
+
+        auto cmdBuf = Context::Instance().commandManager->CreateOneCommandBuffer();
+
+        vk::CommandBufferBeginInfo begin;
+        begin.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBuf.begin(begin); {
+            vk::BufferCopy region;
+            region.setSize(hostVertexBuffer_->size)
+                  .setSrcOffset(0)
+                  .setDstOffset(0);
+            cmdBuf.copyBuffer(hostVertexBuffer_->buffer, deviceVertexBuffer_->buffer, region);      
+        } cmdBuf.end();
+
+        vk::SubmitInfo submit;
+        submit.setCommandBuffers(cmdBuf);
+        Context::Instance().graphicsQueue.submit(submit);
+        Context::Instance().device.waitIdle();
+        Context::Instance().commandManager->FreeCmd(cmdBuf);
     }
 }

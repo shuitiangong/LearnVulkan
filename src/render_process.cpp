@@ -1,6 +1,7 @@
 #include <../toy2d/render_process.hpp>
 #include <../toy2d/Context.hpp>
 #include <../toy2d/swapchain.hpp>
+#include <../toy2d/vertex.hpp>
 #include <iostream>
 namespace toy2d {
     RenderProcess::RenderProcess() {
@@ -63,8 +64,14 @@ namespace toy2d {
 
         // 1. vertex input
         vk::PipelineVertexInputStateCreateInfo vertexInputCreateInfo;
+        auto attribute = Vertex::GetAttributeDescription();
+        auto binding = Vertex::GetBindingDescription();
+        vertexInputCreateInfo.setVertexBindingDescriptions(binding)
+                             .setVertexAttributeDescriptions(attribute);       
 
         // 2. vertex assembly
+
+
         vk::PipelineInputAssemblyStateCreateInfo inputAsmCreateInfo;
         inputAsmCreateInfo.setPrimitiveRestartEnable(false)
                         .setTopology(vk::PrimitiveTopology::eTriangleList);

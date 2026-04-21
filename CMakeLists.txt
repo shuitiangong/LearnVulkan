@@ -54,6 +54,7 @@ set(SDL_RUNTIME_DLL "${VULKAN_SDK_ROOT}/Bin/SDL3.dll")
 message(STATUS "Using SDL3 from ${VULKAN_SDK_ROOT}")
 
 add_executable(${PROJECT_NAME}
+    src/buffer.cpp
     src/command_manager.cpp
     src/main.cpp
     src/toy2d.cpp
