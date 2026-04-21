@@ -5,6 +5,7 @@
 #include <iostream>
 namespace toy2d {
     RenderProcess::RenderProcess() {
+        descriptorSetLayout = createDescriptorSetLayout();
         layout = createLayout();
         renderPass = createRenderPass();
         graphicsPipeline = nullptr;
@@ -15,6 +16,7 @@ namespace toy2d {
         ctx.device.destroyPipeline(graphicsPipeline);
         ctx.device.destroyRenderPass(renderPass);
         ctx.device.destroyPipelineLayout(layout);
+        ctx.device.destroyDescriptorSetLayout(descriptorSetLayout);
     }
 
     void RenderProcess::RecreateGraphicsPipeline(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource) {
@@ -33,8 +35,7 @@ namespace toy2d {
 
     vk::PipelineLayout RenderProcess::createLayout() {
         vk::PipelineLayoutCreateInfo createInfo;
-        createInfo.setPushConstantRangeCount(0)
-                .setSetLayoutCount(0);
+        createInfo.setSetLayouts(descriptorSetLayout);
 
         return Context::Instance().device.createPipelineLayout(createInfo);
     }
@@ -169,5 +170,13 @@ namespace toy2d {
                 .setSubpasses(subpassDesc);
 
         return Context::Instance().device.createRenderPass(createInfo);
+    }
+
+    vk::DescriptorSetLayout RenderProcess::createDescriptorSetLayout() {
+        vk::DescriptorSetLayoutCreateInfo createInfo;
+        auto binding = Unifrom::GetBinding();
+        createInfo.setBindings(binding);
+        
+        return Context::Instance().device.createDescriptorSetLayout(createInfo);
     }
 }

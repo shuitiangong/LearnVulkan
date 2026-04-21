@@ -1,5 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
+#include <../toy2d/uniform.hpp>
+
 
 namespace toy2d {
     class RenderProcess final {
@@ -7,6 +9,7 @@ namespace toy2d {
         vk::Pipeline graphicsPipeline = nullptr;
         vk::RenderPass renderPass = nullptr;
         vk::PipelineLayout layout = nullptr;
+        vk::DescriptorSetLayout descriptorSetLayout = nullptr;
 
         RenderProcess();
         ~RenderProcess();
@@ -15,6 +18,7 @@ namespace toy2d {
         void RecreateRenderPass();
     private:    
         vk::PipelineLayout createLayout();
+        vk::DescriptorSetLayout createDescriptorSetLayout();
         vk::Pipeline createGraphicsPipeline(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource);
         vk::RenderPass createRenderPass();
     };
