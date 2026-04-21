@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vulkan 文档模板"
+  short_description: "Draft detailed Vulkan notes with concept-process and inline API snippets."
+  default_prompt: "Use $vulkan-doc-blog-style to write this Vulkan note with numbered headings, detailed concepts, and process sections that embed API code snippets."
