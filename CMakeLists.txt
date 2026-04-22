@@ -57,6 +57,8 @@ add_executable(${PROJECT_NAME}
     src/buffer.cpp
     src/command_manager.cpp
     src/main.cpp
+    src/math.cpp
+    src/shader.cpp
     src/toy2d.cpp
     src/tool.cpp
     src/context.cpp
@@ -164,6 +166,11 @@ target_link_libraries(${PROJECT_NAME}
         Vulkan::Vulkan
         ${GLM_TARGET}
         ${SDL_TARGET}
+)
+
+target_compile_definitions(${PROJECT_NAME}
+    PRIVATE
+        $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:TOY2D_ENABLE_VULKAN_VALIDATION>
 )
 
 add_custom_target(run

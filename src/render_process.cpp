@@ -1,11 +1,11 @@
-#include <../toy2d/render_process.hpp>
-#include <../toy2d/Context.hpp>
-#include <../toy2d/swapchain.hpp>
-#include <../toy2d/vertex.hpp>
-#include <iostream>
+#include "render_process.hpp"
+#include "context.hpp"
+#include "swapchain.hpp"
+#include "math.hpp"
+
 namespace toy2d {
+
     RenderProcess::RenderProcess() {
-        descriptorSetLayout = createDescriptorSetLayout();
         layout = createLayout();
         renderPass = createRenderPass();
         graphicsPipeline = nullptr;
@@ -13,17 +13,17 @@ namespace toy2d {
 
     RenderProcess::~RenderProcess() {
         auto& ctx = Context::Instance();
-        ctx.device.destroyPipeline(graphicsPipeline);
-        ctx.device.destroyRenderPass(renderPass);
-        ctx.device.destroyPipelineLayout(layout);
-        ctx.device.destroyDescriptorSetLayout(descriptorSetLayout);
+        auto& device = ctx.device;
+        device.destroyRenderPass(renderPass);
+        device.destroyPipelineLayout(layout);
+        device.destroyPipeline(graphicsPipeline);
     }
 
-    void RenderProcess::RecreateGraphicsPipeline(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource) {
+    void RenderProcess::RecreateGraphicsPipeline(const Shader& shader) {
         if (graphicsPipeline) {
             Context::Instance().device.destroyPipeline(graphicsPipeline);
         }
-        graphicsPipeline = createGraphicsPipeline(vertexSource, fragSource);
+        graphicsPipeline = createGraphicsPipeline(shader);
     }
 
     void RenderProcess::RecreateRenderPass() {
@@ -35,47 +35,39 @@ namespace toy2d {
 
     vk::PipelineLayout RenderProcess::createLayout() {
         vk::PipelineLayoutCreateInfo createInfo;
-        createInfo.setSetLayouts(descriptorSetLayout);
+        auto range = Context::Instance().shader->GetPushConstantRange();
+        createInfo.setSetLayouts(Context::Instance().shader->GetDescriptorSetLayouts())
+                  .setPushConstantRanges({range});
+                  
 
         return Context::Instance().device.createPipelineLayout(createInfo);
     }
 
-    vk::Pipeline RenderProcess::createGraphicsPipeline(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource) {
+    vk::Pipeline RenderProcess::createGraphicsPipeline(const Shader& shader) {
         auto& ctx = Context::Instance();
 
         vk::GraphicsPipelineCreateInfo createInfo;
 
         // 0. shader prepare
-        vk::ShaderModuleCreateInfo vertexModuleCreateInfo, fragModuleCreateInfo;
-        vertexModuleCreateInfo.codeSize = vertexSource.size() * sizeof(uint32_t);
-        vertexModuleCreateInfo.pCode = (std::uint32_t*)vertexSource.data();
-        fragModuleCreateInfo.codeSize = fragSource.size() * sizeof(uint32_t);
-        fragModuleCreateInfo.pCode = (std::uint32_t*)fragSource.data();
-
-        auto vertexModule = ctx.device.createShaderModule(vertexModuleCreateInfo);
-        auto fragModule = ctx.device.createShaderModule(fragModuleCreateInfo);
-
         std::array<vk::PipelineShaderStageCreateInfo, 2> stageCreateInfos;
-        stageCreateInfos[0].setModule(vertexModule)
-                        .setPName("main")
-                        .setStage(vk::ShaderStageFlagBits::eVertex);
-        stageCreateInfos[1].setModule(fragModule)
-                        .setPName("main")
-                        .setStage(vk::ShaderStageFlagBits::eFragment);
+        stageCreateInfos[0].setModule(shader.GetVertexModule())
+                           .setPName("main")
+                           .setStage(vk::ShaderStageFlagBits::eVertex);
+        stageCreateInfos[1].setModule(shader.GetFragModule())
+                           .setPName("main")
+                           .setStage(vk::ShaderStageFlagBits::eFragment);
 
         // 1. vertex input
         vk::PipelineVertexInputStateCreateInfo vertexInputCreateInfo;
-        auto attribute = Vertex::GetAttributeDescription();
-        auto binding = Vertex::GetBindingDescription();
-        vertexInputCreateInfo.setVertexBindingDescriptions(binding)
-                             .setVertexAttributeDescriptions(attribute);       
+        auto attributeDesc = Vec::GetAttributeDescription();
+        auto bindingDesc = Vec::GetBindingDescription();
+        vertexInputCreateInfo.setVertexAttributeDescriptions(attributeDesc)
+                             .setVertexBindingDescriptions(bindingDesc);
 
         // 2. vertex assembly
-
-
         vk::PipelineInputAssemblyStateCreateInfo inputAsmCreateInfo;
         inputAsmCreateInfo.setPrimitiveRestartEnable(false)
-                        .setTopology(vk::PrimitiveTopology::eTriangleList);
+                          .setTopology(vk::PrimitiveTopology::eTriangleList);
 
         // 3. viewport and scissor
         vk::PipelineViewportStateCreateInfo viewportInfo;
@@ -86,17 +78,17 @@ namespace toy2d {
 
         // 4. rasteraizer
         vk::PipelineRasterizationStateCreateInfo rasterInfo;
-        rasterInfo.setCullMode(vk::CullModeFlagBits::eBack)
-                .setFrontFace(vk::FrontFace::eCounterClockwise)
-                .setDepthClampEnable(false)
-                .setLineWidth(1)
-                .setPolygonMode(vk::PolygonMode::eFill)
-                .setRasterizerDiscardEnable(false);
+        rasterInfo.setCullMode(vk::CullModeFlagBits::eFront)
+                  .setFrontFace(vk::FrontFace::eCounterClockwise)
+                  .setDepthClampEnable(false)
+                  .setLineWidth(1)
+                  .setPolygonMode(vk::PolygonMode::eFill)
+                  .setRasterizerDiscardEnable(false);
 
         // 5. multisampler
         vk::PipelineMultisampleStateCreateInfo multisampleInfo;
         multisampleInfo.setSampleShadingEnable(false)
-                    .setRasterizationSamples(vk::SampleCountFlagBits::e1);
+                       .setRasterizationSamples(vk::SampleCountFlagBits::e1);
 
         // 6. depth and stencil buffer
         // We currently don't need depth and stencil buffer
@@ -105,32 +97,28 @@ namespace toy2d {
         vk::PipelineColorBlendAttachmentState blendAttachmentState;
         blendAttachmentState.setBlendEnable(false)
                             .setColorWriteMask(vk::ColorComponentFlagBits::eA|
-                                            vk::ColorComponentFlagBits::eB|
-                                            vk::ColorComponentFlagBits::eG|
-                                            vk::ColorComponentFlagBits::eR);
+                                               vk::ColorComponentFlagBits::eB|
+                                               vk::ColorComponentFlagBits::eG|
+                                               vk::ColorComponentFlagBits::eR);
         vk::PipelineColorBlendStateCreateInfo blendInfo;
         blendInfo.setAttachments(blendAttachmentState)
-                .setLogicOpEnable(false);
+                 .setLogicOpEnable(false);
 
         // create graphics pipeline
         createInfo.setStages(stageCreateInfos)
-                .setLayout(layout)
-                .setPVertexInputState(&vertexInputCreateInfo)
-                .setPInputAssemblyState(&inputAsmCreateInfo)
-                .setPViewportState(&viewportInfo)
-                .setPRasterizationState(&rasterInfo)
-                .setPMultisampleState(&multisampleInfo)
-                .setPColorBlendState(&blendInfo)
-                .setRenderPass(renderPass);
+                  .setLayout(layout)
+                  .setPVertexInputState(&vertexInputCreateInfo)
+                  .setPInputAssemblyState(&inputAsmCreateInfo)
+                  .setPViewportState(&viewportInfo)
+                  .setPRasterizationState(&rasterInfo)
+                  .setPMultisampleState(&multisampleInfo)
+                  .setPColorBlendState(&blendInfo)
+                  .setRenderPass(renderPass);
 
         auto result = ctx.device.createGraphicsPipeline(nullptr, createInfo);
         if (result.result != vk::Result::eSuccess) {
             std::cout << "create graphics pipeline failed: " << result.result << std::endl;
         }
-
-        // clear shader module
-        ctx.device.destroyShaderModule(vertexModule);
-        ctx.device.destroyShaderModule(fragModule);
 
         return result.value;
     }
@@ -149,34 +137,27 @@ namespace toy2d {
 
         vk::AttachmentDescription attachDescription;
         attachDescription.setFormat(ctx.swapchain->GetFormat().format)
-                        .setSamples(vk::SampleCountFlagBits::e1)
-                        .setLoadOp(vk::AttachmentLoadOp::eClear)
-                        .setStoreOp(vk::AttachmentStoreOp::eStore)
-                        .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-                        .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-                        .setInitialLayout(vk::ImageLayout::eUndefined)
-                        .setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+                         .setSamples(vk::SampleCountFlagBits::e1)
+                         .setLoadOp(vk::AttachmentLoadOp::eClear)
+                         .setStoreOp(vk::AttachmentStoreOp::eStore)
+                         .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+                         .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+                         .setInitialLayout(vk::ImageLayout::eUndefined)
+                         .setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
         vk::AttachmentReference reference;
         reference.setAttachment(0)
-                .setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+                 .setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
         vk::SubpassDescription subpassDesc;
         subpassDesc.setColorAttachments(reference)
-                .setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
+                   .setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
 
         subpassDesc.setColorAttachments(reference);
         createInfo.setAttachments(attachDescription)
-                .setDependencies(dependency)
-                .setSubpasses(subpassDesc);
+                  .setDependencies(dependency)
+                  .setSubpasses(subpassDesc);
 
         return Context::Instance().device.createRenderPass(createInfo);
     }
 
-    vk::DescriptorSetLayout RenderProcess::createDescriptorSetLayout() {
-        vk::DescriptorSetLayoutCreateInfo createInfo;
-        auto binding = Unifrom::GetBinding();
-        createInfo.setBindings(binding);
-        
-        return Context::Instance().device.createDescriptorSetLayout(createInfo);
-    }
 }

@@ -1,7 +1,8 @@
-#include <../toy2d/swapchain.hpp>
-#include <../toy2d/context.hpp>
+#include "swapchain.hpp"
+#include "context.hpp"
 
 namespace toy2d {
+
     Swapchain::Swapchain(vk::SurfaceKHR surface, int windowWidth, int windowHeight): surface(surface) {
         querySurfaceInfo(windowWidth, windowHeight);
         swapchain = createSwapchain();
@@ -10,13 +11,14 @@ namespace toy2d {
 
     Swapchain::~Swapchain() {
         auto& ctx = Context::Instance();
-        for (auto& framebuffer : framebuffers) {
-            Context::Instance().device.destroyFramebuffer(framebuffer);
-        }
         for (auto& img : images) {
             ctx.device.destroyImageView(img.view);
         }
+        for (auto& framebuffer : framebuffers) {
+            Context::Instance().device.destroyFramebuffer(framebuffer);
+        }
         ctx.device.destroySwapchainKHR(swapchain);
+        ctx.instance.destroySurfaceKHR(surface);
     }
 
     void Swapchain::InitFramebuffers() {
@@ -24,15 +26,16 @@ namespace toy2d {
     }
 
     void Swapchain::querySurfaceInfo(int windowWidth, int windowHeight) {
-        auto& ctx = Context::Instance();
-        auto capabilities = ctx.phyDevice.getSurfaceCapabilitiesKHR(surface);
-        surfaceInfo_.format = querySurfaceFormat();
-        surfaceInfo_.count = std::clamp<uint32_t>(capabilities.minImageCount+1, capabilities.minImageCount, capabilities.maxImageCount);
-        surfaceInfo_.transform = capabilities.currentTransform;
-        surfaceInfo_.extent = querySurfaceExtent(capabilities, windowWidth, windowHeight);
+        surfaceInfo_.format = querySurfaceeFormat();
+
+        auto capability = Context::Instance().phyDevice.getSurfaceCapabilitiesKHR(surface);
+        surfaceInfo_.count = std::clamp(capability.minImageCount + 1,
+                                        capability.minImageCount, capability.maxImageCount);
+        surfaceInfo_.transform = capability.currentTransform;
+        surfaceInfo_.extent = querySurfaceExtent(capability, windowWidth, windowHeight);
     }
 
-    vk::SurfaceFormatKHR Swapchain::querySurfaceFormat() {
+    vk::SurfaceFormatKHR Swapchain::querySurfaceeFormat() {
         auto formats = Context::Instance().phyDevice.getSurfaceFormatsKHR(surface);
         for (auto& format : formats) {
             if (format.format == vk::Format::eR8G8B8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
@@ -60,25 +63,24 @@ namespace toy2d {
     vk::SwapchainKHR Swapchain::createSwapchain() {
         vk::SwapchainCreateInfoKHR createInfo;
         createInfo.setClipped(true)
-                .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
-                .setImageExtent(surfaceInfo_.extent)
-                .setImageColorSpace(surfaceInfo_.format.colorSpace)
-                .setImageFormat(surfaceInfo_.format.format)
-                .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
-                .setMinImageCount(surfaceInfo_.count)
-                .setImageArrayLayers(1)
-                .setPresentMode(vk::PresentModeKHR::eFifo)
-                .setPreTransform(surfaceInfo_.transform)
-                .setSurface(surface);
+                  .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
+                  .setImageExtent(surfaceInfo_.extent)
+                  .setImageColorSpace(surfaceInfo_.format.colorSpace)
+                  .setImageFormat(surfaceInfo_.format.format)
+                  .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
+                  .setMinImageCount(surfaceInfo_.count)
+                  .setImageArrayLayers(1)
+                  .setPresentMode(vk::PresentModeKHR::eFifo)
+                  .setPreTransform(surfaceInfo_.transform)
+                  .setSurface(surface);
 
         auto& ctx = Context::Instance();
         if (ctx.queueInfo.graphicsIndex.value() == ctx.queueInfo.presentIndex.value()) {
-            createInfo.setQueueFamilyIndices(ctx.queueInfo.graphicsIndex.value())
-                      .setImageSharingMode(vk::SharingMode::eExclusive);
+            createInfo.setImageSharingMode(vk::SharingMode::eExclusive);
         } else {
-            std::array indices = {ctx.queueInfo.graphicsIndex.value(), ctx.queueInfo.presentIndex.value()};
-            createInfo.setQueueFamilyIndices(indices)
-                      .setImageSharingMode(vk::SharingMode::eConcurrent);
+            createInfo.setImageSharingMode(vk::SharingMode::eConcurrent);
+            std::array queueIndices = {ctx.queueInfo.graphicsIndex.value(), ctx.queueInfo.presentIndex.value()};
+            createInfo.setQueueFamilyIndices(queueIndices);
         }
 
         return ctx.device.createSwapchainKHR(createInfo);
@@ -87,7 +89,6 @@ namespace toy2d {
     void Swapchain::createImageAndViews() {
         auto& ctx = Context::Instance();
         auto images = ctx.device.getSwapchainImagesKHR(swapchain);
-        this->images.clear();
         for (auto& image : images) {
             Image img;
             img.image = image;
@@ -109,19 +110,19 @@ namespace toy2d {
     }
 
     void Swapchain::createFramebuffers() {
-        framebuffers.clear();
         for (auto& img : images) {
             auto& view = img.view;
 
             vk::FramebufferCreateInfo createInfo;
             createInfo.setAttachments(view)
-                    .setLayers(1)
-                    .setHeight(GetExtent().height)
-                    .setWidth(GetExtent().width)
-                    .setRenderPass(Context::Instance().renderProcess->renderPass);
+                      .setLayers(1)
+                      .setHeight(GetExtent().height)
+                      .setWidth(GetExtent().width)
+                      .setRenderPass(Context::Instance().renderProcess->renderPass);
 
             framebuffers.push_back(Context::Instance().device.createFramebuffer(createInfo));
         }
     }
+
+
 }
-            

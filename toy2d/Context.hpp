@@ -1,64 +1,76 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
+
 #include <memory>
+#include <iostream>
 #include <optional>
-#include <../toy2d/tool.hpp>
-#include <../toy2d/swapchain.hpp>
-#include <../toy2d/command_manager.hpp>
-#include <render_process.hpp>
-#include <renderer.hpp>
+#include <functional>
+#include <vector>
+#include <array>
+#include <cassert>
+
+#include <vulkan/vulkan.hpp>
+#include "swapchain.hpp"
+#include "render_process.hpp"
+#include "tool.hpp"
+#include "command_manager.hpp"
+#include "shader.hpp"
 
 namespace toy2d {
-    class Context final {
-        public:
-            using GetSurfaceCallback = std::function<vk::SurfaceKHR(vk::Instance)>;
-            friend void Init(const std::vector<const char*>& extensions, GetSurfaceCallback, int, int);
-            static void Init(const std::vector<const char*>& extensions, GetSurfaceCallback);
-            static void Quit();
-            static Context& Instance();
 
-            struct QueueInfo {
-                std::optional<uint32_t> graphicsIndex;
-                std::optional<uint32_t> presentIndex;
-            };
+    class Context {
+    public:
+        using GetSurfaceCallback = std::function<VkSurfaceKHR(VkInstance)>;
+        friend void Init(std::vector<const char*>&, GetSurfaceCallback, int, int);
 
-            vk::Instance instance;
-            vk::PhysicalDevice phyDevice;
-            vk::Device device;
-            vk::Queue graphicsQueue;
-            vk::Queue presentQueue;
-            std::unique_ptr<Swapchain> swapchain;
-            std::unique_ptr<RenderProcess> renderProcess;
-            std::unique_ptr<CommandManager> commandManager;
-            VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
-            QueueInfo queueInfo;
+        static void Init(std::vector<const char*>& extensions, GetSurfaceCallback);
+        static void Quit();
+        static Context& Instance();
 
-        private:
-            static Context* instance_;
-            vk::SurfaceKHR surface_;
+        struct QueueInfo {
+            std::optional<std::uint32_t> graphicsIndex;
+            std::optional<std::uint32_t> presentIndex;
+        } queueInfo;
 
-            GetSurfaceCallback getSurfaceCb_ = nullptr;
+        vk::Instance instance;
+        vk::PhysicalDevice phyDevice;
+        vk::Device device;
+        vk::Queue graphicsQueue;
+        vk::Queue presentQueue;
+        std::unique_ptr<Swapchain> swapchain;
+        std::unique_ptr<RenderProcess> renderProcess;
+        std::unique_ptr<CommandManager> commandManager;
+        std::unique_ptr<Shader> shader;
+        VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
 
-            Context(const std::vector<const char*>& extensions, GetSurfaceCallback);
-            ~Context();
+    private:
+        static Context* instance_;
+        vk::SurfaceKHR surface_;
 
-            void initRenderProcess();
-            void initSwapchain(int windowWidth, int windowHeight);
-            void initGraphicsPipeline();
-            void initCommandPool();
+        GetSurfaceCallback getSurfaceCb_ = nullptr;
 
-            vk::Instance createInstance(const std::vector<const char*>& extensions);
-            vk::PhysicalDevice pickupPhysicalDevice();
-            vk::Device createDevice(vk::SurfaceKHR);
-            
-            void queryQueueInfo(vk::SurfaceKHR);
-            void setupDebugUtilsMessenger();
-            void destroyDebugUtilsMessenger();
+        Context(std::vector<const char*>& extensions, GetSurfaceCallback);
+        ~Context();
 
-            static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
-                VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                VkDebugUtilsMessageTypeFlagsEXT messageType,
-                const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
-                void* userData);
+        void initRenderProcess();
+        void initSwapchain(int windowWidth, int windowHeight);
+        void initGraphicsPipeline();
+        void initCommandPool();
+        void initShaderModules();
+
+        vk::Instance createInstance(std::vector<const char*>& extensions);
+        vk::PhysicalDevice pickupPhysicalDevice();
+        vk::Device createDevice(vk::SurfaceKHR);
+
+        void queryQueueInfo(vk::SurfaceKHR);
+        void setupDebugUtilsMessenger();
+        void destroyDebugUtilsMessenger();
+
+        static bool IsValidationEnabled();
+        static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+            VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            VkDebugUtilsMessageTypeFlagsEXT messageType,
+            const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+            void* userData);
     };
+
 }

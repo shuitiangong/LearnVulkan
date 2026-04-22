@@ -1,28 +1,30 @@
-#include <../toy2d/Context.hpp>
-#include <../toy2d/tool.hpp>
-#include <iostream>
-#include <stdexcept>
-#include <vector>
-#include <functional>
+#include "context.hpp"
+
 namespace toy2d {
+
+    bool Context::IsValidationEnabled() {
+#ifdef TOY2D_ENABLE_VULKAN_VALIDATION
+        return true;
+#else
+        return false;
+#endif
+    }
 
     Context* Context::instance_ = nullptr;
 
-    void Context::Init(const std::vector<const char*>& extensions, GetSurfaceCallback cb) {
+    void Context::Init(std::vector<const char*>& extensions, GetSurfaceCallback cb) {
         instance_ = new Context(extensions, cb);
     }
 
     void Context::Quit() {
         delete instance_;
-        instance_ = nullptr;
     }
 
     Context& Context::Instance() {
-        assert(instance_);
         return *instance_;
     }
 
-    Context::Context(const std::vector<const char*>& extensions, GetSurfaceCallback cb) {
+    Context::Context(std::vector<const char*>& extensions, GetSurfaceCallback cb) {
         getSurfaceCb_ = cb;
 
         instance = createInstance(extensions);
@@ -54,81 +56,76 @@ namespace toy2d {
         presentQueue = device.getQueue(queueInfo.presentIndex.value(), 0);
     }
 
-    vk::Instance Context::createInstance(const std::vector<const char*>& extensions) {
-        vk::InstanceCreateInfo info; 
+    vk::Instance Context::createInstance(std::vector<const char*>& extensions) {
+        vk::InstanceCreateInfo info;
         vk::ApplicationInfo appInfo;
-        std::vector<const char*> layers = {"VK_LAYER_KHRONOS_validation"};
+        appInfo.setApiVersion(VK_API_VERSION_1_3);
         std::vector<const char*> enabledExtensions = extensions;
-        enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        std::vector<const char*> layers;
 
-        appInfo.setPApplicationName("Toy2D")
-               .setApplicationVersion(1)
-               .setApiVersion(VK_API_VERSION_1_4);
+        if (IsValidationEnabled()) {
+            enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            layers.push_back("VK_LAYER_KHRONOS_validation");
+        }
+
         info.setPApplicationInfo(&appInfo)
-            .setPEnabledLayerNames(layers)
-            .setPEnabledExtensionNames(enabledExtensions);
+            .setPEnabledExtensionNames(enabledExtensions)
+            .setPEnabledLayerNames(layers);
 
         return vk::createInstance(info);
     }
 
     vk::PhysicalDevice Context::pickupPhysicalDevice() {
         auto devices = instance.enumeratePhysicalDevices();
-        if (devices.empty()) {
-            throw std::runtime_error("No Vulkan physical devices found.");
+        if (devices.size() == 0) {
+            std::cout << "you don't have suitable device to support vulkan" << std::endl;
+            exit(1);
         }
-
-        phyDevice = devices.front();
-        for (const auto& device : devices) {
-            const auto properties = device.getProperties();
-            if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
-                phyDevice = device;
-                break;
-            }
-        }
-
-        std::cout << phyDevice.getProperties().deviceName << std::endl;
-        return phyDevice;
+        return devices[0];
     }
 
     vk::Device Context::createDevice(vk::SurfaceKHR surface) {
         vk::DeviceCreateInfo deviceCreateInfo;
         queryQueueInfo(surface);
-
-        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-        float priorities = 1.0;
-        vk::DeviceQueueCreateInfo queueCreateInfo;
-        queueCreateInfo.setPQueuePriorities(&priorities)
-                       .setQueueCount(1)
-                       .setQueueFamilyIndex(queueInfo.graphicsIndex.value());
-        queueCreateInfos.push_back(queueCreateInfo); 
-        // Check whether a separate present queue is needed.
-        // If graphics and present queues differ, create both queue infos.
-        if (queueInfo.graphicsIndex.value() != queueInfo.presentIndex.value()) {
-            queueCreateInfo.setPQueuePriorities(&priorities)
-                           .setQueueCount(1)
-                           .setQueueFamilyIndex(queueInfo.presentIndex.value());
-            queueCreateInfos.push_back(queueCreateInfo);               
-        }
-        
         std::array extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-        deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
-                        .setPEnabledExtensionNames(extensions);
+        deviceCreateInfo.setPEnabledExtensionNames(extensions);
+
+        std::vector<vk::DeviceQueueCreateInfo> queueInfos;
+        float priority = 1;
+        if (queueInfo.graphicsIndex.value() == queueInfo.presentIndex.value()) {
+            vk::DeviceQueueCreateInfo queueCreateInfo;
+            queueCreateInfo.setPQueuePriorities(&priority);
+            queueCreateInfo.setQueueCount(1);
+            queueCreateInfo.setQueueFamilyIndex(queueInfo.graphicsIndex.value());
+            queueInfos.push_back(queueCreateInfo);
+        } else {
+            vk::DeviceQueueCreateInfo queueCreateInfo;
+            queueCreateInfo.setPQueuePriorities(&priority);
+            queueCreateInfo.setQueueCount(1);
+            queueCreateInfo.setQueueFamilyIndex(queueInfo.graphicsIndex.value());
+            queueInfos.push_back(queueCreateInfo);
+
+            queueCreateInfo.setQueueFamilyIndex(queueInfo.presentIndex.value());
+            queueInfos.push_back(queueCreateInfo);
+        }
+        deviceCreateInfo.setQueueCreateInfos(queueInfos);
+
         return phyDevice.createDevice(deviceCreateInfo);
     }
 
     void Context::queryQueueInfo(vk::SurfaceKHR surface) {
-        auto properties = phyDevice.getQueueFamilyProperties();
-        for (std::size_t i = 0; i < properties.size(); ++i) {
-            const auto& property = properties[i];
-            // graphics queue
-            if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
-                queueInfo.graphicsIndex = static_cast<uint32_t>(i);
+        auto queueProps = phyDevice.getQueueFamilyProperties();
+        for (int i = 0; i < queueProps.size(); i++) {
+            if (queueProps[i].queueFlags & vk::QueueFlagBits::eGraphics) {
+                queueInfo.graphicsIndex = i;
             }
-            // present queue
+
             if (phyDevice.getSurfaceSupportKHR(i, surface)) {
-                queueInfo.presentIndex = static_cast<uint32_t>(i);
+                queueInfo.presentIndex = i;
             }
-            if (queueInfo.graphicsIndex.has_value() && queueInfo.presentIndex) {
+
+            if (queueInfo.graphicsIndex.has_value() &&
+                queueInfo.presentIndex.has_value()) {
                 break;
             }
         }
@@ -143,24 +140,34 @@ namespace toy2d {
     }
 
     void Context::initGraphicsPipeline() {
-        auto vertexSource = ReadSpvFile("shader/shader.vert.spv");
-        auto fragSource = ReadSpvFile("shader/shader.frag.spv");
-        renderProcess->RecreateGraphicsPipeline(vertexSource, fragSource);
+        renderProcess->RecreateGraphicsPipeline(*shader);
     }
 
-    VKAPI_ATTR VkBool32 VKAPI_CALL Context::DebugCallback (
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
-        void* userData) {
-        (void)messageSeverity;
-        (void)messageType;
-        (void)userData;
-        std::cerr << "[Vulkan Validation] " << callbackData->pMessage << '\n';
-        return VK_FALSE;
+    void Context::initCommandPool() {
+        commandManager = std::make_unique<CommandManager>();
+    }
+
+    void Context::initShaderModules() {
+        auto vertexSource = ReadSpvFile("shader/shader.vert.spv");
+        auto fragSource = ReadSpvFile("shader/shader.frag.spv");
+        shader = std::make_unique<Shader>(vertexSource, fragSource);
+    }
+
+    Context::~Context() {
+        shader.reset();
+        commandManager.reset();
+        renderProcess.reset();
+        swapchain.reset();
+        device.destroy();
+        destroyDebugUtilsMessenger();
+        instance.destroy();
     }
 
     void Context::setupDebugUtilsMessenger() {
+        if (!IsValidationEnabled()) {
+            return;
+        }
+
         VkDebugUtilsMessengerCreateInfoEXT createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         createInfo.messageSeverity =
@@ -188,7 +195,7 @@ namespace toy2d {
     }
 
     void Context::destroyDebugUtilsMessenger() {
-        if (debugMessenger == VK_NULL_HANDLE || !instance) {
+        if (!IsValidationEnabled() || debugMessenger == VK_NULL_HANDLE || !instance) {
             return;
         }
 
@@ -200,17 +207,25 @@ namespace toy2d {
         debugMessenger = VK_NULL_HANDLE;
     }
 
-    void Context::initCommandPool() {
-        commandManager = std::make_unique<CommandManager>();
+    VKAPI_ATTR VkBool32 VKAPI_CALL Context::DebugCallback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT messageType,
+        const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+        void* userData) {
+        (void)messageType;
+        (void)userData;
+
+        const char* severity = "INFO";
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+            severity = "ERROR";
+        } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+            severity = "WARN";
+        } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+            severity = "VERBOSE";
+        }
+
+        std::cerr << "[Vulkan " << severity << "] " << callbackData->pMessage << '\n';
+        return VK_FALSE;
     }
 
-    Context::~Context() {
-        commandManager.reset();
-        renderProcess.reset();
-        swapchain.reset();
-        instance.destroySurfaceKHR(surface_);
-        device.destroy();
-        destroyDebugUtilsMessenger();
-        instance.destroy();
-    }
 }

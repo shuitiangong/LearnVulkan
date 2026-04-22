@@ -1,7 +1,10 @@
 #pragma once
+
 #include <vulkan/vulkan.hpp>
+#include <vector>
 
 namespace toy2d {
+
     class Swapchain final {
     public:
         struct Image {
@@ -9,8 +12,8 @@ namespace toy2d {
             vk::ImageView view;
         };
 
-        vk::SurfaceKHR surface;
-        vk::SwapchainKHR swapchain;
+        vk::SurfaceKHR surface = nullptr;
+        vk::SwapchainKHR swapchain = nullptr;
         std::vector<Image> images;
         std::vector<vk::Framebuffer> framebuffers;
 
@@ -23,20 +26,20 @@ namespace toy2d {
         void InitFramebuffers();
 
     private:
-        struct SwapchainInfo {
+        struct SurfaceInfo {
             vk::SurfaceFormatKHR format;
             vk::Extent2D extent;
-            uint32_t count;
+            std::uint32_t count;
             vk::SurfaceTransformFlagBitsKHR transform;
-        };
-
-        SwapchainInfo surfaceInfo_;
+        } surfaceInfo_;
 
         vk::SwapchainKHR createSwapchain();
+
         void querySurfaceInfo(int windowWidth, int windowHeight);
-        vk::SurfaceFormatKHR querySurfaceFormat();
-        vk::Extent2D querySurfaceExtent(const vk::SurfaceCapabilitiesKHR& capabilities, int windowWidth, int windowHeight);
+        vk::SurfaceFormatKHR querySurfaceeFormat();
+        vk::Extent2D querySurfaceExtent(const vk::SurfaceCapabilitiesKHR& capability, int windowWidth, int windowHeight);
         void createImageAndViews();
         void createFramebuffers();
     };
+
 }

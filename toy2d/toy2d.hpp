@@ -1,13 +1,14 @@
 #pragma once
-#include <vulkan/vulkan.h>
-#include <vector>
-#include <../toy2d/tool.hpp>
-#include <../toy2d/Context.hpp>
-#include <../toy2d/renderer.hpp>
+
+#include "context.hpp"
+#include "render_process.hpp"
+#include "renderer.hpp"
+#include <memory>
 
 namespace toy2d {
-    void Init(const std::vector<const char*>& extensions, Context::GetSurfaceCallback getSurfaceCallback, int w, int h);
-    void Quit();
 
+    void Init(std::vector<const char*>& extensions, Context::GetSurfaceCallback, int windowWidth, int windowHeight);
+    void Quit();
     Renderer* GetRenderer();
+
 }

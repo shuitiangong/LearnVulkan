@@ -1,24 +1,26 @@
 #pragma once
+
+#include <cstddef>
+#include <cstdint>
 #include <vulkan/vulkan.hpp>
 
 namespace toy2d {
-    class Buffer final {
-    public:
+
+    struct Buffer {
         vk::Buffer buffer;
         vk::DeviceMemory memory;
+        void* map;
         size_t size;
+        size_t requireSize;
 
-        Buffer(size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+        Buffer(vk::BufferUsageFlags usage, size_t size, vk::MemoryPropertyFlags memProperty);
         ~Buffer();
-    private:
-        struct MemoryInfo final {
-            size_t size;
-            uint32_t index;
-        };
 
-        void createBuffer(size_t size, vk::BufferUsageFlags usage);
-        void allocateMemory(MemoryInfo info);
-        void bindingMem2Buf();
-        MemoryInfo queryMemoryInfo(vk::MemoryPropertyFlags property);
+        Buffer(const Buffer&) = delete;
+        Buffer& operator=(const Buffer&) = delete;
+
+    private:
+        std::uint32_t queryBufferMemTypeIndex(std::uint32_t requirementBit, vk::MemoryPropertyFlags);
     };
+
 }

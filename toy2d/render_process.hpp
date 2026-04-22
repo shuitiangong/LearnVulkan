@@ -1,25 +1,27 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
-#include <../toy2d/uniform.hpp>
 
+#include <vulkan/vulkan.hpp>
+#include "shader.hpp"
+#include <fstream>
 
 namespace toy2d {
-    class RenderProcess final {
+
+    class RenderProcess {
     public:
         vk::Pipeline graphicsPipeline = nullptr;
         vk::RenderPass renderPass = nullptr;
         vk::PipelineLayout layout = nullptr;
-        vk::DescriptorSetLayout descriptorSetLayout = nullptr;
 
         RenderProcess();
         ~RenderProcess();
 
-        void RecreateGraphicsPipeline(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource);
+        void RecreateGraphicsPipeline(const Shader& shader);
         void RecreateRenderPass();
-    private:    
+
+    private:
         vk::PipelineLayout createLayout();
-        vk::DescriptorSetLayout createDescriptorSetLayout();
-        vk::Pipeline createGraphicsPipeline(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource);
+        vk::Pipeline createGraphicsPipeline(const Shader& shader);
         vk::RenderPass createRenderPass();
     };
+
 }

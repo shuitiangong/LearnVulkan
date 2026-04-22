@@ -1,46 +1,65 @@
 #pragma once
+
 #include <vulkan/vulkan.hpp>
-#include <vector>
-#include <vertex.hpp>
-#include <buffer.hpp>
-#include <uniform.hpp>
-#include <memory>
+#include "context.hpp"
+#include "command_manager.hpp"
+#include "swapchain.hpp"
+#include "math.hpp"
+#include "buffer.hpp"
+#include <limits>
 
 namespace toy2d {
-    class Renderer final {
+
+    class Renderer {
     public:
-        Renderer(int swapchainImageCount = 3);
+        Renderer(int maxFlightCount = 2);
         ~Renderer();
 
-        void DrawTriangle();
+        void SetProject(int right, int left, int bottom, int top, int far, int near);
+        void DrawRect(const Rect&);
+        void SetDrawColor(const Color&);
+
     private:
+        struct MVP {
+            Mat4 project;
+            Mat4 view;
+            Mat4 model;
+        };
+
         int maxFlightCount_;
         int curFrame_;
-
+        std::vector<vk::Fence> fences_;
         std::vector<vk::Semaphore> imageAvaliableSems_;
         std::vector<vk::Semaphore> renderFinishSems_;
-        std::vector<vk::Fence> cmdAvaliableFences_;
         std::vector<vk::CommandBuffer> cmdBufs_;
-
-        std::unique_ptr<Buffer> hostVertexBuffer_;
-        std::unique_ptr<Buffer> deviceVertexBuffer_;
-        std::vector<std::unique_ptr<Buffer>> hostUniformBuffer_;
-        std::vector<std::unique_ptr<Buffer>> deviceUniformBuffer_;
-
+        std::unique_ptr<Buffer> verticesBuffer_;
+        std::unique_ptr<Buffer> indicesBuffer_;
+        Mat4 projectMat_;
+        Mat4 viewMat_;
+        std::vector<std::unique_ptr<Buffer>> mvpUniformBuffers_;
+        std::vector<std::unique_ptr<Buffer>> colorUniformBuffers_;
+        std::vector<std::unique_ptr<Buffer>> deviceMvpUniformBuffers_;
+        std::vector<std::unique_ptr<Buffer>> deviceColorUniformBuffers_;
         vk::DescriptorPool descriptorPool_;
-        std::vector<vk::DescriptorSet> descriptorSets_;
+        std::vector<vk::DescriptorSet> mvpDescriptorSets_;
+        std::vector<vk::DescriptorSet> colorDescriptorSets_;
 
         void createFences();
         void createSemaphores();
         void createCmdBuffers();
-        void createVertexBuffer();
+        void createBuffers();
+        void createUniformBuffers(int flightCount);
+        void bufferData();
         void bufferVertexData();
-        void createUniformBuffers();
-        void bufferUniformData();
-        void createDescriptorPool();
-        void allocateDescriptorSets();
+        void bufferIndicesData();
+        void bufferMVPData(const Mat4& model);
+        void initMats();
+        void createDescriptorPool(int flightCount);
+        void allocDescriptorSets(int flightCount);
         void updateDescriptorSets();
+        void transformBuffer2Device(Buffer& src, Buffer& dst, size_t srcOffset, size_t dstOffset, size_t size);
 
-        void copyBuffer(vk::Buffer& src, vk::Buffer& dst, size_t size, size_t srcOffset = 0, size_t dstOffset = 0);
+        std::uint32_t queryBufferMemTypeIndex(std::uint32_t, vk::MemoryPropertyFlags);
     };
+
 }
