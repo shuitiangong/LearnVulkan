@@ -1,24 +1,7 @@
 #include "math.hpp"
+#include <cstring>
 
 namespace toy2d {
-
-    vk::VertexInputAttributeDescription Vec::GetAttributeDescription() {
-        vk::VertexInputAttributeDescription description;
-        description.setBinding(0)
-                    .setFormat(vk::Format::eR32G32Sfloat)
-                    .setLocation(0)
-                    .setOffset(0);
-        return description;
-    }
-
-    vk::VertexInputBindingDescription Vec::GetBindingDescription() {
-        vk::VertexInputBindingDescription description;
-        description.setBinding(0)
-                   .setStride(sizeof(float) * 2)
-                   .setInputRate(vk::VertexInputRate::eVertex);
-
-        return description;
-    }
 
     Mat4 Mat4::Create(const std::initializer_list<float>& initList) {
         Mat4 mat;

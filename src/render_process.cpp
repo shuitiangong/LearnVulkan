@@ -19,11 +19,11 @@ namespace toy2d {
         device.destroyPipeline(graphicsPipeline);
     }
 
-    void RenderProcess::RecreateGraphicsPipeline(const Shader& shader) {
+    void RenderProcess::RecreateGraphicsPipeline(const shader_program& shaderProgram) {
         if (graphicsPipeline) {
             Context::Instance().device.destroyPipeline(graphicsPipeline);
         }
-        graphicsPipeline = createGraphicsPipeline(shader);
+        graphicsPipeline = createGraphicsPipeline(shaderProgram);
     }
 
     void RenderProcess::RecreateRenderPass() {
@@ -35,34 +35,31 @@ namespace toy2d {
 
     vk::PipelineLayout RenderProcess::createLayout() {
         vk::PipelineLayoutCreateInfo createInfo;
-        auto range = Context::Instance().shader->GetPushConstantRange();
-        createInfo.setSetLayouts(Context::Instance().shader->GetDescriptorSetLayouts())
-                  .setPushConstantRanges({range});
+        createInfo.setSetLayouts(Context::Instance().shaderProgram->GetDescriptorSetLayouts())
+                  .setPushConstantRanges(Context::Instance().shaderProgram->GetPushConstantRanges());
                   
 
         return Context::Instance().device.createPipelineLayout(createInfo);
     }
 
-    vk::Pipeline RenderProcess::createGraphicsPipeline(const Shader& shader) {
+    vk::Pipeline RenderProcess::createGraphicsPipeline(const shader_program& shaderProgram) {
         auto& ctx = Context::Instance();
 
         vk::GraphicsPipelineCreateInfo createInfo;
 
         // 0. shader prepare
         std::array<vk::PipelineShaderStageCreateInfo, 2> stageCreateInfos;
-        stageCreateInfos[0].setModule(shader.GetVertexModule())
+        stageCreateInfos[0].setModule(shaderProgram.GetVertexModule())
                            .setPName("main")
                            .setStage(vk::ShaderStageFlagBits::eVertex);
-        stageCreateInfos[1].setModule(shader.GetFragModule())
+        stageCreateInfos[1].setModule(shaderProgram.GetFragModule())
                            .setPName("main")
                            .setStage(vk::ShaderStageFlagBits::eFragment);
 
         // 1. vertex input
         vk::PipelineVertexInputStateCreateInfo vertexInputCreateInfo;
-        auto attributeDesc = Vec::GetAttributeDescription();
-        auto bindingDesc = Vec::GetBindingDescription();
-        vertexInputCreateInfo.setVertexAttributeDescriptions(attributeDesc)
-                             .setVertexBindingDescriptions(bindingDesc);
+        vertexInputCreateInfo.setVertexAttributeDescriptions(shaderProgram.GetVertexInputAttributeDescriptions())
+                             .setVertexBindingDescriptions(shaderProgram.GetVertexInputBindingDescriptions());
 
         // 2. vertex assembly
         vk::PipelineInputAssemblyStateCreateInfo inputAsmCreateInfo;

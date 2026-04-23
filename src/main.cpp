@@ -44,45 +44,69 @@ int main(int argc, char** argv) {
             }
             return surface;
         }, 1024, 720);
-    auto renderer = toy2d::GetRenderer();
+    {
+        auto renderer = toy2d::GetRenderer();
+        auto quadMesh = toy2d::CreateQuadMesh();
+        toy2d::Material materialA;
+        materialA.color = toy2d::Color{0, 1, 0};
+        materialA.createTexture("../../../assets/opaque.png");
 
-    bool shouldClose = false;
-    SDL_Event event;
+        toy2d::Material materialB;
+        materialB.color = toy2d::Color{1, 1, 1};
+        materialB.createTexture("../../../assets/opaque.png");
 
-    float x = 100, y = 100;
+        toy2d::GameObject objectA;
+        objectA.SetMaterial(&materialA);
+        objectA.SetMesh(&quadMesh);
+        objectA.SetSize(toy2d::Size{200, 300});
 
-    renderer->SetDrawColor(toy2d::Color{0, 1, 0});
-    while (!shouldClose) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
-                shouldClose = true;
+        toy2d::GameObject objectB;
+        objectB.SetMaterial(&materialB);
+        objectB.SetMesh(&quadMesh);
+        objectB.SetSize(toy2d::Size{120, 120});
+
+        bool shouldClose = false;
+        SDL_Event event;
+
+        float x = 100, y = 100;
+
+        while (!shouldClose) {
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_EVENT_QUIT) {
+                    shouldClose = true;
+                }
+                if (event.type == SDL_EVENT_KEY_DOWN) {
+                    if (event.key.key == SDLK_A) {
+                        x -= 10;
+                    }
+                    if (event.key.key == SDLK_D) {
+                        x += 10;
+                    }
+                    if (event.key.key == SDLK_W) {
+                        y -= 10;
+                    }
+                    if (event.key.key == SDLK_S) {
+                        y += 10;
+                    }
+                    if (event.key.key == SDLK_0) {
+                        objectA.SetColor(toy2d::Color{1, 0, 0});
+                    }
+                    if (event.key.key == SDLK_1) {
+                        objectA.SetColor(toy2d::Color{0, 1, 0});
+                    }
+                    if (event.key.key == SDLK_2) {
+                        objectA.SetColor(toy2d::Color{0, 0, 1});
+                    }
+                }
             }
-            if (event.type == SDL_EVENT_KEY_DOWN) {
-                if (event.key.key == SDLK_A) {
-                    x -= 10;
-                }
-                if (event.key.key == SDLK_D) {
-                    x += 10;
-                }
-                if (event.key.key == SDLK_W) {
-                    y -= 10;
-                }
-                if (event.key.key == SDLK_S) {
-                    y += 10;
-                }
-                if (event.key.key == SDLK_0) {
-                    renderer->SetDrawColor(toy2d::Color{1, 0, 0});
-                }
-                if (event.key.key == SDLK_1) {
-                    renderer->SetDrawColor(toy2d::Color{0, 1, 0});
-                }
-                if (event.key.key == SDLK_2) {
-                    renderer->SetDrawColor(toy2d::Color{0, 0, 1});
-                }
-            }
+            objectA.SetPosition(toy2d::Vec{x, y});
+            objectB.SetPosition(toy2d::Vec{x + 260.0f, y + 80.0f});
+
+            renderer->BeginFrame();
+            renderer->Draw(objectA);
+            renderer->Draw(objectB);
+            renderer->EndFrame();
         }
-        renderer->DrawRect(toy2d::Rect{toy2d::Vec{x, y},
-                                       toy2d::Size{200, 300}});
     }
     toy2d::Quit();
 

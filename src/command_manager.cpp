@@ -32,7 +32,7 @@ namespace toy2d {
 
         vk::CommandBufferAllocateInfo allocInfo;
         allocInfo.setCommandPool(pool_)
-                 .setCommandBufferCount(1)
+                 .setCommandBufferCount(count)
                  .setLevel(vk::CommandBufferLevel::ePrimary);
 
         return ctx.device.allocateCommandBuffers(allocInfo);
@@ -46,4 +46,22 @@ namespace toy2d {
         Context::Instance().device.freeCommandBuffers(pool_, cmdBuf);
     }
 
+    void CommandManager::ExecuteCmd(vk::Queue queue, RecordCmdFunc func) {
+        auto cmdBuf = CreateOneCommandBuffer();
+
+        vk::CommandBufferBeginInfo beginInfo;
+        beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBuf.begin(beginInfo);
+        if (func) {
+            func(cmdBuf);
+        }
+        cmdBuf.end();
+
+        vk::SubmitInfo submitInfo;
+        submitInfo.setCommandBuffers(cmdBuf);
+        queue.submit(submitInfo);
+        queue.waitIdle();
+        Context::Instance().device.waitIdle();
+        FreeCmd(cmdBuf);
+    }
 }

@@ -1,11 +1,11 @@
-#include "shader.hpp"
+#include "shader_program.hpp"
 #include "context.hpp"
 
 #include <stdexcept>
 
 namespace toy2d {
 
-    Shader::Shader(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource) {
+    shader_program::shader_program(const std::vector<uint32_t>& vertexSource, const std::vector<uint32_t>& fragSource) {
         if (vertexSource.empty()) {
             throw std::runtime_error("create shader module failed: vertex shader source is empty");
         }
@@ -24,35 +24,59 @@ namespace toy2d {
         fragModule_ = device.createShaderModule(fragModuleCreateInfo);
 
         initDescriptorSetLayouts();
+        initVertexInputDescriptions();
+        initPushConstantRanges();
     }
 
-    void Shader::initDescriptorSetLayouts() {
+    void shader_program::initDescriptorSetLayouts() {
         vk::DescriptorSetLayoutCreateInfo createInfo;
-        vk::DescriptorSetLayoutBinding binding;
-        binding.setBinding(0)
+
+        //set0
+        vk::DescriptorSetLayoutBinding set0Binding;
+        set0Binding.setBinding(0)
             .setDescriptorCount(1)
-            .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+            .setDescriptorType(vk::DescriptorType::eUniformBufferDynamic)
             .setStageFlags(vk::ShaderStageFlagBits::eVertex);
-        createInfo.setBindings(binding);
+
+        createInfo.setBindings(set0Binding);
         layouts_.push_back(Context::Instance().device.createDescriptorSetLayout(createInfo));
 
-        binding.setBinding(0)
+        //set1
+        vk::DescriptorSetLayoutBinding set1Binding;
+        set1Binding.setBinding(0)
             .setDescriptorCount(1)
-            .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+            .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
             .setStageFlags(vk::ShaderStageFlagBits::eFragment);
-        createInfo.setBindings(binding);
+        createInfo.setBindings(set1Binding);
         layouts_.push_back(Context::Instance().device.createDescriptorSetLayout(createInfo));
     }
 
-    vk::PushConstantRange Shader::GetPushConstantRange() const {
+    void shader_program::initVertexInputDescriptions() {
+        vertexAttributes_.resize(2);
+        vertexAttributes_[0].setBinding(0)
+                            .setFormat(vk::Format::eR32G32Sfloat)
+                            .setLocation(0)
+                            .setOffset(0);
+        vertexAttributes_[1].setBinding(0)
+                            .setFormat(vk::Format::eR32G32Sfloat)
+                            .setLocation(1)
+                            .setOffset(offsetof(Vertex, texcoord));
+
+        vertexBindings_.resize(1);
+        vertexBindings_[0].setBinding(0)
+                          .setStride(sizeof(Vertex))
+                          .setInputRate(vk::VertexInputRate::eVertex);
+    }
+
+    void shader_program::initPushConstantRanges() {
         vk::PushConstantRange range;
         range.setOffset(0)
-             .setSize(sizeof(Mat4))
-             .setStageFlags(vk::ShaderStageFlagBits::eVertex);
-        return range;
+             .setSize(sizeof(float) * 4)
+             .setStageFlags(vk::ShaderStageFlagBits::eFragment);
+        pushConstants_.push_back(range);
     }
 
-    Shader::~Shader() {
+    shader_program::~shader_program() {
         auto& device = Context::Instance().device;
         for (auto& layout : layouts_) {
             device.destroyDescriptorSetLayout(layout);

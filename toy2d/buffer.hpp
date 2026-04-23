@@ -24,8 +24,9 @@ namespace toy2d {
         void* map_;
         vk::MemoryPropertyFlags memProperty_;
 
-        std::uint32_t queryBufferMemTypeIndex(std::uint32_t requirementBit, vk::MemoryPropertyFlags);
         void flushIfNeeded(size_t offset, size_t dataSize);
     };
+
+    std::uint32_t queryBufferMemTypeIndex(std::uint32_t requirementBit, vk::MemoryPropertyFlags);
 
 }

@@ -4,8 +4,9 @@
 #include "context.hpp"
 #include "command_manager.hpp"
 #include "swapchain.hpp"
-#include "math.hpp"
+#include "game_object.hpp"
 #include "buffer.hpp"
+#include "camera.hpp"
 #include <limits>
 
 namespace toy2d {
@@ -15,9 +16,11 @@ namespace toy2d {
         Renderer(int maxFlightCount = 2);
         ~Renderer();
 
-        void SetProject(int right, int left, int bottom, int top, int far, int near);
-        void DrawRect(const Rect&);
-        void SetDrawColor(const Color&);
+        Camera& GetCamera() { return camera_; }
+        const Camera& GetCamera() const { return camera_; }
+        void BeginFrame();
+        void Draw(const GameObject&);
+        void EndFrame();
 
     private:
         struct MVP {
@@ -26,38 +29,38 @@ namespace toy2d {
             Mat4 model;
         };
 
+        struct ColorPushConstant {
+            float r;
+            float g;
+            float b;
+            float a;
+        };
+
         int maxFlightCount_;
+        int maxObjectCountPerFrame_;
         int curFrame_;
+        int objectCountInFrame_;
+        std::uint32_t imageIndex_;
+        bool frameStarted_;
+        std::uint32_t alignedMvpSize_;
         std::vector<vk::Fence> fences_;
         std::vector<vk::Semaphore> imageAvaliableSems_;
         std::vector<vk::Semaphore> renderFinishSems_;
         std::vector<vk::CommandBuffer> cmdBufs_;
-        std::unique_ptr<Buffer> verticesBuffer_;
-        std::unique_ptr<Buffer> indicesBuffer_;
-        Mat4 projectMat_;
-        Mat4 viewMat_;
+        Camera camera_;
         std::vector<std::unique_ptr<Buffer>> mvpUniformBuffers_;
-        std::vector<std::unique_ptr<Buffer>> colorUniformBuffers_;
-        std::vector<std::unique_ptr<Buffer>> deviceMvpUniformBuffers_;
-        std::vector<std::unique_ptr<Buffer>> deviceColorUniformBuffers_;
         vk::DescriptorPool descriptorPool_;
         std::vector<vk::DescriptorSet> mvpDescriptorSets_;
-        std::vector<vk::DescriptorSet> colorDescriptorSets_;
 
         void createFences();
         void createSemaphores();
         void createCmdBuffers();
-        void createBuffers();
         void createUniformBuffers(int flightCount);
-        void bufferData();
-        void bufferVertexData();
-        void bufferIndicesData();
-        void bufferMVPData(const Mat4& model);
-        void initMats();
+        std::uint32_t bufferMVPData(const Mat4& model);
         void createDescriptorPool(int flightCount);
         void allocDescriptorSets(int flightCount);
         void updateDescriptorSets();
-        void transformBuffer2Device(Buffer& src, Buffer& dst, size_t srcOffset, size_t dstOffset, size_t size);
+        vk::CommandBuffer& currentCommandBuffer();
     };
 
 }

@@ -12,10 +12,10 @@ namespace toy2d {
         int channel;
         stbi_uc* data = stbi_load(filename.data(), &w, &h, &channel, STBI_rgb_alpha);
         if (!data) {
-            throw std::runtime_error("failed to load texture image");
+            throw std::runtime_error(std::string("failed to load texture image: ") + stbi_failure_reason());
         }
 
-        size_t size = w*h*channel;
+        size_t size = w * h * 4;
         std::unique_ptr<Buffer> buffer(new Buffer(vk::BufferUsageFlagBits::eTransferSrc,
                                        size,
                                        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent

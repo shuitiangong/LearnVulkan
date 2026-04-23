@@ -55,16 +55,20 @@ message(STATUS "Using SDL3 from ${VULKAN_SDK_ROOT}")
 
 add_executable(${PROJECT_NAME}
     src/buffer.cpp
+    src/camera.cpp
     src/command_manager.cpp
     src/main.cpp
+    src/material.cpp
     src/math.cpp
-    src/shader.cpp
+    src/shader_program.cpp
     src/toy2d.cpp
     src/tool.cpp
     src/context.cpp
+    src/game_object.cpp
     src/swapchain.cpp
     src/render_process.cpp
     src/renderer.cpp
+    src/texture.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -155,6 +159,7 @@ endif()
 target_include_directories(${PROJECT_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/toy2d"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb"
 )
 
 if(MINGW)

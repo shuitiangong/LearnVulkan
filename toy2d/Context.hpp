@@ -13,10 +13,9 @@
 #include "render_process.hpp"
 #include "tool.hpp"
 #include "command_manager.hpp"
-#include "shader.hpp"
+#include "shader_program.hpp"
 
 namespace toy2d {
-
     class Context {
     public:
         using GetSurfaceCallback = std::function<VkSurfaceKHR(VkInstance)>;
@@ -39,7 +38,7 @@ namespace toy2d {
         std::unique_ptr<Swapchain> swapchain;
         std::unique_ptr<RenderProcess> renderProcess;
         std::unique_ptr<CommandManager> commandManager;
-        std::unique_ptr<Shader> shader;
+        std::unique_ptr<shader_program> shaderProgram;
         VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
 
     private:
@@ -62,9 +61,9 @@ namespace toy2d {
         vk::Device createDevice(vk::SurfaceKHR);
 
         void queryQueueInfo(vk::SurfaceKHR);
+
         void setupDebugUtilsMessenger();
         void destroyDebugUtilsMessenger();
-
         static bool IsValidationEnabled();
         static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
             VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

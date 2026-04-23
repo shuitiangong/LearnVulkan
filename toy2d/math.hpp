@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 #include <initializer_list>
 
 namespace toy2d {
@@ -11,11 +10,14 @@ namespace toy2d {
             struct { float w, h; };
         };
 
-        static vk::VertexInputAttributeDescription GetAttributeDescription();
-        static vk::VertexInputBindingDescription GetBindingDescription();
     };
 
-    struct Color {
+    struct Vertex final {
+        Vec position;
+        Vec texcoord;
+    };
+
+    struct Color final {
         float r, g, b;
     };
 

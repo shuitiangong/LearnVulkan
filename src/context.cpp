@@ -140,7 +140,7 @@ namespace toy2d {
     }
 
     void Context::initGraphicsPipeline() {
-        renderProcess->RecreateGraphicsPipeline(*shader);
+        renderProcess->RecreateGraphicsPipeline(*shaderProgram);
     }
 
     void Context::initCommandPool() {
@@ -150,11 +150,11 @@ namespace toy2d {
     void Context::initShaderModules() {
         auto vertexSource = ReadSpvFile("shader/shader.vert.spv");
         auto fragSource = ReadSpvFile("shader/shader.frag.spv");
-        shader = std::make_unique<Shader>(vertexSource, fragSource);
+        shaderProgram = std::make_unique<shader_program>(vertexSource, fragSource);
     }
 
     Context::~Context() {
-        shader.reset();
+        shaderProgram.reset();
         commandManager.reset();
         renderProcess.reset();
         swapchain.reset();

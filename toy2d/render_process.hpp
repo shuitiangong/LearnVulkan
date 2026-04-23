@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
-#include "shader.hpp"
+#include "shader_program.hpp"
 #include <fstream>
 
 namespace toy2d {
@@ -15,12 +15,12 @@ namespace toy2d {
         RenderProcess();
         ~RenderProcess();
 
-        void RecreateGraphicsPipeline(const Shader& shader);
+        void RecreateGraphicsPipeline(const shader_program& shaderProgram);
         void RecreateRenderPass();
 
     private:
         vk::PipelineLayout createLayout();
-        vk::Pipeline createGraphicsPipeline(const Shader& shader);
+        vk::Pipeline createGraphicsPipeline(const shader_program& shaderProgram);
         vk::RenderPass createRenderPass();
     };
 
