@@ -58,8 +58,6 @@ namespace toy2d {
         void allocDescriptorSets(int flightCount);
         void updateDescriptorSets();
         void transformBuffer2Device(Buffer& src, Buffer& dst, size_t srcOffset, size_t dstOffset, size_t size);
-
-        std::uint32_t queryBufferMemTypeIndex(std::uint32_t, vk::MemoryPropertyFlags);
     };
 
 }

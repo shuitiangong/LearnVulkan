@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("sandbox",
+    SDL_Window* window = SDL_CreateWindow("toy2d",
                                           1024, 720,
                                           SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN);
     if (!window) {

@@ -165,7 +165,7 @@ namespace toy2d {
                                          vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent));
 
         indicesBuffer_.reset(new Buffer(vk::BufferUsageFlagBits::eIndexBuffer,
-                                         sizeof(float) * 6,
+                                         sizeof(std::uint32_t) * 6,
                                          vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent));
     }
 
@@ -221,19 +221,6 @@ namespace toy2d {
         Context::Instance().commandManager->FreeCmd(cmdBuf);
     }
 
-    std::uint32_t Renderer::queryBufferMemTypeIndex(std::uint32_t type, vk::MemoryPropertyFlags flag) {
-        auto property = Context::Instance().phyDevice.getMemoryProperties();
-
-        for (std::uint32_t i = 0; i < property.memoryTypeCount; i++) {
-            if ((1 << i) & type &&
-                property.memoryTypes[i].propertyFlags & flag) {
-                    return i;
-            }
-        }
-
-        return 0;
-    }
-
     void Renderer::bufferData() {
         bufferVertexData();
         bufferIndicesData();
@@ -246,8 +233,7 @@ namespace toy2d {
             Vec{{0.5, 0.5}},
             Vec{{-0.5, 0.5}},
         };
-        auto& device = Context::Instance().device;
-        memcpy(verticesBuffer_->map, vertices, sizeof(vertices));
+        verticesBuffer_->WriteData(vertices, sizeof(vertices));
     }
 
     void Renderer::bufferIndicesData() {
@@ -255,8 +241,7 @@ namespace toy2d {
             0, 1, 3,
             1, 2, 3,
         };
-        auto& device = Context::Instance().device;
-        memcpy(indicesBuffer_->map, indices, sizeof(indices));
+        indicesBuffer_->WriteData(indices, sizeof(indices));
     }
 
     void Renderer::bufferMVPData(const Mat4& model) {
@@ -264,10 +249,9 @@ namespace toy2d {
         mvp.project = projectMat_;
         mvp.view = viewMat_;
         mvp.model = model;
-        auto& device = Context::Instance().device;
         for (int i = 0; i < mvpUniformBuffers_.size(); i++) {
             auto& buffer = mvpUniformBuffers_[i];
-            memcpy(buffer->map, (void*)&mvp, sizeof(mvp));
+            buffer->WriteData(&mvp, sizeof(mvp));
             transformBuffer2Device(*buffer, *deviceMvpUniformBuffers_[i], 0, 0, buffer->size);
         }
     }
@@ -275,8 +259,7 @@ namespace toy2d {
     void Renderer::SetDrawColor(const Color& color) {
         for (int i = 0; i < colorUniformBuffers_.size(); i++) {
             auto& buffer = colorUniformBuffers_[i];
-            auto& device = Context::Instance().device;
-            memcpy(buffer->map, (void*)&color, sizeof(float) * 3);
+            buffer->WriteData(&color, sizeof(float) * 3);
 
             transformBuffer2Device(*buffer, *deviceColorUniformBuffers_[i], 0, 0, buffer->size);
         }
