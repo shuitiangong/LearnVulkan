@@ -15,3 +15,4 @@ This directory stores study notes for the project.
 - [09 - CommandBuffer / Semaphore / Fence](./09-CommandBuffer-Semaphore-Fence.md)
 - [10 - Project Review](./10-Project-Review.md)
 - [11 - In-Flight Optimization and Refactor](./11-Inflight-And-Refactor.md)
+- [12 - Buffer / Uniform / Descriptor / Push Constant](./12-Buffer-Uniform-Descriptor-PushConstant.md)
