@@ -16,3 +16,4 @@ This directory stores study notes for the project.
 - [10 - Project Review](./10-Project-Review.md)
 - [11 - In-Flight Optimization and Refactor](./11-Inflight-And-Refactor.md)
 - [12 - Buffer / Uniform / Descriptor / Push Constant](./12-Buffer-Uniform-Descriptor-PushConstant.md)
+- [13 - Texture Mapping](./13-Texture-Mapping.md)
