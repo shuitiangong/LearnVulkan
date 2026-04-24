@@ -126,7 +126,7 @@ namespace toy2d {
                                material.GetDescriptorSet(curFrame_),
                                {});
 
-        ColorPushConstant colorData{material.color.r, material.color.g, material.color.b, 1.0f};
+        ColorPushConstant colorData{material.color.x, material.color.y, material.color.z, 1.0f};
         cmd.pushConstants(ctx.renderProcess->layout,
                           vk::ShaderStageFlagBits::eFragment,
                           0,
@@ -221,7 +221,7 @@ namespace toy2d {
         }
     }
 
-    std::uint32_t Renderer::bufferMVPData(const Mat4& model) {
+    std::uint32_t Renderer::bufferMVPData(const glm::mat4& model) {
         if (objectCountInFrame_ >= maxObjectCountPerFrame_) {
             throw std::runtime_error("too many objects in one frame");
         }

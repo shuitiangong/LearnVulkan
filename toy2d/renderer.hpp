@@ -24,9 +24,9 @@ namespace toy2d {
 
     private:
         struct MVP {
-            Mat4 project;
-            Mat4 view;
-            Mat4 model;
+            glm::mat4 project;
+            glm::mat4 view;
+            glm::mat4 model;
         };
 
         struct ColorPushConstant {
@@ -56,7 +56,7 @@ namespace toy2d {
         void createSemaphores();
         void createCmdBuffers();
         void createUniformBuffers(int flightCount);
-        std::uint32_t bufferMVPData(const Mat4& model);
+        std::uint32_t bufferMVPData(const glm::mat4& model);
         void createDescriptorPool(int flightCount);
         void allocDescriptorSets(int flightCount);
         void updateDescriptorSets();

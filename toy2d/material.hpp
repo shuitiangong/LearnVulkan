@@ -15,7 +15,7 @@ namespace toy2d {
 
         std::unique_ptr<Texture> texture;
         vk::Sampler sampler = nullptr;
-        Color color{1, 1, 1};
+        glm::vec3 color{1.0f, 1.0f, 1.0f};
 
         vk::Sampler createSampler();
         Texture& createTexture(const std::string& path);

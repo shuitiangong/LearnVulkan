@@ -1,55 +1,17 @@
 #pragma once
 
-#include <initializer_list>
+#include <glm/glm.hpp>
 
 namespace toy2d {
 
-    struct Vec {
-        union {
-            struct { float x, y; };
-            struct { float w, h; };
-        };
-
-    };
-
     struct Vertex final {
-        Vec position;
-        Vec texcoord;
-    };
-
-    struct Color final {
-        float r, g, b;
-    };
-
-    using Size = Vec;
-
-    class Mat4 {
-    public:
-        static Mat4 CreateIdentity();
-        static Mat4 CreateOnes();
-        static Mat4 CreateOrtho(int left, int right, int top, int bottom, int near, int far);
-        static Mat4 CreateTranslate(const Vec&);
-        static Mat4 CreateScale(const Vec&);
-        static Mat4 Create(const std::initializer_list<float>&);
-
-        Mat4();
-        const float* GetData() const { return data_; }
-        void Set(int x, int y, float value) {
-            data_[x * 4 + y] = value;
-        }
-        float Get(int x, int y) const {
-            return data_[x * 4 + y];
-        }
-
-        Mat4 Mul(const Mat4& m) const;
-
-    private:
-        float data_[4 * 4];
+        glm::vec2 position;
+        glm::vec2 texcoord;
     };
 
     struct Rect {
-        Vec position;
-        Size size;
+        glm::vec2 position;
+        glm::vec2 size;
     };
 
 }

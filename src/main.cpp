@@ -1,6 +1,7 @@
 #include "toy2d.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
+#include <glm/glm.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -46,61 +47,84 @@ int main(int argc, char** argv) {
         }, 1024, 720);
     {
         auto renderer = toy2d::GetRenderer();
+        auto& camera = renderer->GetCamera();
         auto quadMesh = toy2d::CreateQuadMesh();
         toy2d::Material materialA;
-        materialA.color = toy2d::Color{0, 1, 0};
+        materialA.color = glm::vec3(0.0f, 1.0f, 0.0f);
         materialA.createTexture("../../../assets/opaque.png");
 
         toy2d::Material materialB;
-        materialB.color = toy2d::Color{1, 1, 1};
+        materialB.color = glm::vec3(1.0f, 1.0f, 1.0f);
         materialB.createTexture("../../../assets/opaque.png");
 
         toy2d::GameObject objectA;
         objectA.SetMaterial(&materialA);
         objectA.SetMesh(&quadMesh);
-        objectA.SetSize(toy2d::Size{200, 300});
+        objectA.SetSize(glm::vec2(1.8f, 2.2f));
+        objectA.SetPosition(glm::vec3(-1.4f, 0.0f, 0.0f));
 
         toy2d::GameObject objectB;
         objectB.SetMaterial(&materialB);
         objectB.SetMesh(&quadMesh);
-        objectB.SetSize(toy2d::Size{120, 120});
+        objectB.SetSize(glm::vec2(1.1f, 1.1f));
+        objectB.SetPosition(glm::vec3(1.4f, 0.35f, -1.2f));
+
+        camera.SetPosition(0.0f, 0.0f, 5.0f);
 
         bool shouldClose = false;
+        bool rotateCamera = false;
         SDL_Event event;
-
-        float x = 100, y = 100;
+        Uint64 lastCounter = SDL_GetPerformanceCounter();
 
         while (!shouldClose) {
+            Uint64 currentCounter = SDL_GetPerformanceCounter();
+            float deltaTime = static_cast<float>(currentCounter - lastCounter) /
+                              static_cast<float>(SDL_GetPerformanceFrequency());
+            lastCounter = currentCounter;
+
             while (SDL_PollEvent(&event)) {
                 if (event.type == SDL_EVENT_QUIT) {
                     shouldClose = true;
                 }
                 if (event.type == SDL_EVENT_KEY_DOWN) {
-                    if (event.key.key == SDLK_A) {
-                        x -= 10;
-                    }
-                    if (event.key.key == SDLK_D) {
-                        x += 10;
-                    }
-                    if (event.key.key == SDLK_W) {
-                        y -= 10;
-                    }
-                    if (event.key.key == SDLK_S) {
-                        y += 10;
-                    }
-                    if (event.key.key == SDLK_0) {
-                        objectA.SetColor(toy2d::Color{1, 0, 0});
-                    }
-                    if (event.key.key == SDLK_1) {
-                        objectA.SetColor(toy2d::Color{0, 1, 0});
-                    }
-                    if (event.key.key == SDLK_2) {
-                        objectA.SetColor(toy2d::Color{0, 0, 1});
+                    if (event.key.key == SDLK_ESCAPE) {
+                        shouldClose = true;
                     }
                 }
+                if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_RIGHT) {
+                    rotateCamera = true;
+                }
+                if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_RIGHT) {
+                    rotateCamera = false;
+                }
+                if (event.type == SDL_EVENT_MOUSE_MOTION && rotateCamera) {
+                    camera.ProcessMouseMovement(static_cast<float>(event.motion.xrel),
+                                                static_cast<float>(-event.motion.yrel));
+                }
+                if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+                    camera.ProcessMouseScroll(static_cast<float>(event.wheel.y));
+                }
             }
-            objectA.SetPosition(toy2d::Vec{x, y});
-            objectB.SetPosition(toy2d::Vec{x + 260.0f, y + 80.0f});
+
+            const bool* keyboardState = SDL_GetKeyboardState(nullptr);
+            if (keyboardState[SDL_SCANCODE_W]) {
+                camera.ProcessKeyboard(toy2d::CameraMovement::Forward, deltaTime);
+            }
+            if (keyboardState[SDL_SCANCODE_S]) {
+                camera.ProcessKeyboard(toy2d::CameraMovement::Backward, deltaTime);
+            }
+            if (keyboardState[SDL_SCANCODE_A]) {
+                camera.ProcessKeyboard(toy2d::CameraMovement::Left, deltaTime);
+            }
+            if (keyboardState[SDL_SCANCODE_D]) {
+                camera.ProcessKeyboard(toy2d::CameraMovement::Right, deltaTime);
+            }
+            if (keyboardState[SDL_SCANCODE_Q]) {
+                camera.ProcessKeyboard(toy2d::CameraMovement::Up, deltaTime);
+            }
+            if (keyboardState[SDL_SCANCODE_E]) {
+                camera.ProcessKeyboard(toy2d::CameraMovement::Down, deltaTime);
+            }
 
             renderer->BeginFrame();
             renderer->Draw(objectA);

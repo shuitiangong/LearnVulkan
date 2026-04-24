@@ -75,7 +75,7 @@ namespace toy2d {
 
         // 4. rasteraizer
         vk::PipelineRasterizationStateCreateInfo rasterInfo;
-        rasterInfo.setCullMode(vk::CullModeFlagBits::eFront)
+        rasterInfo.setCullMode(vk::CullModeFlagBits::eNone)
                   .setFrontFace(vk::FrontFace::eCounterClockwise)
                   .setDepthClampEnable(false)
                   .setLineWidth(1)
