@@ -75,7 +75,7 @@ namespace toy2d {
 
         // 4. rasteraizer
         vk::PipelineRasterizationStateCreateInfo rasterInfo;
-        rasterInfo.setCullMode(vk::CullModeFlagBits::eNone)
+        rasterInfo.setCullMode(vk::CullModeFlagBits::eBack)
                   .setFrontFace(vk::FrontFace::eCounterClockwise)
                   .setDepthClampEnable(false)
                   .setLineWidth(1)
@@ -89,6 +89,12 @@ namespace toy2d {
 
         // 6. depth and stencil buffer
         // We currently don't need depth and stencil buffer
+        vk::PipelineDepthStencilStateCreateInfo depthStencilInfo;
+        depthStencilInfo.setDepthTestEnable(true)
+                        .setDepthWriteEnable(true)
+                        .setDepthCompareOp(vk::CompareOp::eLess)
+                        .setDepthBoundsTestEnable(false)
+                        .setStencilTestEnable(false);
 
         // 7. blending
         vk::PipelineColorBlendAttachmentState blendAttachmentState;
@@ -109,6 +115,7 @@ namespace toy2d {
                   .setPViewportState(&viewportInfo)
                   .setPRasterizationState(&rasterInfo)
                   .setPMultisampleState(&multisampleInfo)
+                  .setPDepthStencilState(&depthStencilInfo)
                   .setPColorBlendState(&blendInfo)
                   .setRenderPass(renderPass);
 
@@ -125,15 +132,8 @@ namespace toy2d {
 
         vk::RenderPassCreateInfo createInfo;
 
-        vk::SubpassDependency dependency;
-        dependency.setSrcSubpass(VK_SUBPASS_EXTERNAL)
-            .setDstSubpass(0)
-            .setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
-            .setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
-            .setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
-
-        vk::AttachmentDescription attachDescription;
-        attachDescription.setFormat(ctx.swapchain->GetFormat().format)
+        vk::AttachmentDescription colorAttachment;
+        colorAttachment.setFormat(ctx.swapchain->GetFormat().format)
                          .setSamples(vk::SampleCountFlagBits::e1)
                          .setLoadOp(vk::AttachmentLoadOp::eClear)
                          .setStoreOp(vk::AttachmentStoreOp::eStore)
@@ -141,19 +141,49 @@ namespace toy2d {
                          .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
                          .setInitialLayout(vk::ImageLayout::eUndefined)
                          .setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
-        vk::AttachmentReference reference;
-        reference.setAttachment(0)
+        vk::AttachmentReference colorRef;
+        colorRef.setAttachment(0)
                  .setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
+        vk::AttachmentDescription depthAttachment;
+        depthAttachment.setFormat(ctx.swapchain->GetDepthFormat())
+                         .setSamples(vk::SampleCountFlagBits::e1)
+                         .setLoadOp(vk::AttachmentLoadOp::eClear)
+                         .setStoreOp(vk::AttachmentStoreOp::eDontCare)
+                         .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+                         .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+                         .setInitialLayout(vk::ImageLayout::eUndefined)
+                         .setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+        vk::AttachmentReference depthRef;
+        depthRef.setAttachment(1)
+                 .setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);         
+
         vk::SubpassDescription subpassDesc;
-        subpassDesc.setColorAttachments(reference)
-                   .setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
+        subpassDesc.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+                   .setColorAttachments(colorRef)
+                   .setPDepthStencilAttachment(&depthRef);
 
-        subpassDesc.setColorAttachments(reference);
-        createInfo.setAttachments(attachDescription)
-                  .setDependencies(dependency)
-                  .setSubpasses(subpassDesc);
+        vk::SubpassDependency dependency;
+        dependency.setSrcSubpass(VK_SUBPASS_EXTERNAL)
+            .setDstSubpass(0)
+            .setSrcStageMask(
+                vk::PipelineStageFlagBits::eColorAttachmentOutput
+                | vk::PipelineStageFlagBits::eEarlyFragmentTests)
+            .setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput
+                | vk::PipelineStageFlagBits::eEarlyFragmentTests)
+            .setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite
+                | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
 
+        std::array<vk::AttachmentDescription, 2> attachments = {
+            colorAttachment,
+            depthAttachment
+        };        
+
+        subpassDesc.setColorAttachments(colorRef);
+        createInfo.setAttachments(attachments)
+                  .setSubpasses(subpassDesc)
+                  .setDependencies(dependency);
+                  
         return Context::Instance().device.createRenderPass(createInfo);
     }
 

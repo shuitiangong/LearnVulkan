@@ -71,13 +71,14 @@ namespace toy2d {
         beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
         cmd.begin(beginInfo);
 
-        vk::ClearValue clearValue;
-        clearValue.setColor(vk::ClearColorValue(std::array<float, 4>{0.1f, 0.1f, 0.1f, 1.0f}));
+        std::array<vk::ClearValue, 2> clearValues;
+        clearValues[0].setColor(vk::ClearColorValue(std::array<float, 4>{0.1f, 0.1f, 0.1f, 1.0f}));
+        clearValues[1].setDepthStencil(vk::ClearDepthStencilValue(1.0f, 0));
 
         vk::RenderPassBeginInfo renderPassBegin;
         renderPassBegin.setRenderPass(ctx.renderProcess->renderPass)
                        .setFramebuffer(swapchain->framebuffers[imageIndex_])
-                       .setClearValues(clearValue)
+                       .setClearValues(clearValues)
                        .setRenderArea(vk::Rect2D({}, swapchain->GetExtent()));
 
         cmd.beginRenderPass(&renderPassBegin, vk::SubpassContents::eInline);

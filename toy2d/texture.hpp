@@ -1,6 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include <buffer.hpp>
+#include "image_resource.hpp"
 #include <string_view>
 
 namespace toy2d {
@@ -9,11 +10,14 @@ namespace toy2d {
         Texture(std::string_view filename);
         ~Texture();
 
-        vk::Image image;
-        vk::DeviceMemory memory;
-        vk::ImageView view;
+        vk::Image GetVkImage() const { return image_.image; }
+        vk::ImageView GetImageView() const { return image_.view; }
+        vk::Format GetFormat() const { return image_.format; }
+        const AllocatedImage& GetImage() const { return image_; }
 
     private:
+        AllocatedImage image_;
+
         void createImage(uint32_t w, uint32_t h);
         void allocMemory();
         void createImageView();

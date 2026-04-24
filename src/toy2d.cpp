@@ -14,7 +14,7 @@ namespace toy2d {
         ctx.swapchain->InitFramebuffers();
         ctx.initCommandPool();
 
-        renderer_ = std::make_unique<Renderer>(static_cast<int>(ctx.swapchain->images.size()));
+        renderer_ = std::make_unique<Renderer>(static_cast<int>(ctx.swapchain->swapchainImages.size()));
         renderer_->GetCamera().SetPerspective(45.0f,
                                               static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
                                               0.1f,

@@ -10,6 +10,7 @@ namespace toy2d {
         int w;
         int h;
         int channel;
+        stbi_set_flip_vertically_on_load(true);
         stbi_uc* data = stbi_load(filename.data(), &w, &h, &channel, STBI_rgb_alpha);
         if (!data) {
             throw std::runtime_error(std::string("failed to load texture image: ") + stbi_failure_reason());
@@ -23,7 +24,7 @@ namespace toy2d {
         buffer->WriteData(data, size);   
         createImage(w, h);
         allocMemory();
-        Context::Instance().device.bindImageMemory(image, memory, 0);
+        Context::Instance().device.bindImageMemory(image_.image, image_.memory, 0);
 
         transitionImageLayoutFromUndefine2Dst();
         transformData2Image(*buffer, w, h);
@@ -35,36 +36,43 @@ namespace toy2d {
 
     Texture::~Texture() {
         auto& device = Context::Instance().device;
-        device.destroyImageView(view);
-        device.freeMemory(memory);
-        device.destroyImage(image);
+        if (image_.view) {
+            device.destroyImageView(image_.view);
+        }
+        if (image_.memory) {
+            device.freeMemory(image_.memory);
+        }
+        if (image_.image) {
+            device.destroyImage(image_.image);
+        }
     }
 
     void Texture::createImage(uint32_t w, uint32_t h) {
+        image_.format = vk::Format::eR8G8B8A8Srgb;
         vk::ImageCreateInfo createInfo;
         createInfo.setImageType(vk::ImageType::e2D)
                   .setArrayLayers(1)
                   .setMipLevels(1)
                   .setExtent({w, h, 1})
-                  .setFormat(vk::Format::eR8G8B8A8Srgb)
+                  .setFormat(image_.format)
                   .setTiling(vk::ImageTiling::eOptimal)
                   .setInitialLayout(vk::ImageLayout::eUndefined)
                   .setUsage(vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled)
                   .setSamples(vk::SampleCountFlagBits::e1);                
-        image = Context::Instance().device.createImage(createInfo);          
+        image_.image = Context::Instance().device.createImage(createInfo);          
     }
 
     void Texture::allocMemory() {
         auto& device = Context::Instance().device;
         vk::MemoryAllocateInfo allocInfo;
 
-        auto requirements = device.getImageMemoryRequirements(image);
+        auto requirements = device.getImageMemoryRequirements(image_.image);
         allocInfo.setAllocationSize(requirements.size);
 
         auto index = queryBufferMemTypeIndex(requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
         allocInfo.setMemoryTypeIndex(index);
 
-        memory = device.allocateMemory(allocInfo);
+        image_.memory = device.allocateMemory(allocInfo);
     }
 
     void Texture::transformData2Image(Buffer& buffer, uint32_t w, uint32_t h) {
@@ -83,7 +91,7 @@ namespace toy2d {
                       .setBufferRowLength(0)
                       .setImageSubresource(subsource);
                 cmdBuf.copyBufferToImage(buffer.buffer, 
-                                         image, 
+                                         image_.image, 
                                          vk::ImageLayout::eTransferDstOptimal,
                                          region);               
             }
@@ -101,7 +109,7 @@ namespace toy2d {
                      .setLevelCount(1)
                      .setBaseMipLevel(0)
                      .setAspectMask(vk::ImageAspectFlagBits::eColor);
-                barrier.setImage(image)
+                barrier.setImage(image_.image)
                        .setOldLayout(vk::ImageLayout::eUndefined)
                        .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
                        .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -125,7 +133,7 @@ namespace toy2d {
                      .setLevelCount(1)
                      .setBaseMipLevel(0)
                      .setAspectMask(vk::ImageAspectFlagBits::eColor);
-                barrier.setImage(image)
+                barrier.setImage(image_.image)
                        .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
                        .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
                        .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -148,11 +156,11 @@ namespace toy2d {
              .setLayerCount(1)
              .setLevelCount(1)
              .setBaseMipLevel(0);
-        createInfo.setImage(image)
+        createInfo.setImage(image_.image)
                   .setViewType(vk::ImageViewType::e2D)
                   .setComponents(mapping)     
-                  .setFormat(vk::Format::eR8G8B8A8Srgb)
+                  .setFormat(image_.format)
                   .setSubresourceRange(range);
-        view = Context::Instance().device.createImageView(createInfo);          
+        image_.view = Context::Instance().device.createImageView(createInfo);          
     }
 }

@@ -1,24 +1,24 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
+#include "image_resource.hpp"
 #include <vector>
 
 namespace toy2d {
 
     class Swapchain final {
     public:
-        struct Image {
-            vk::Image image;
-            vk::ImageView view;
-        };
-
         vk::SurfaceKHR surface = nullptr;
         vk::SwapchainKHR swapchain = nullptr;
-        std::vector<Image> images;
+        std::vector<ImageResource> swapchainImages;
+
+        AllocatedImage depthImage;
+
         std::vector<vk::Framebuffer> framebuffers;
 
         const auto& GetExtent() const { return surfaceInfo_.extent; }
         const auto& GetFormat() const { return surfaceInfo_.format; }
+        const auto& GetDepthFormat() const { return depthImage.format; }
 
         Swapchain(vk::SurfaceKHR, int windowWidth, int windowHeight);
         ~Swapchain();
@@ -39,6 +39,8 @@ namespace toy2d {
         vk::SurfaceFormatKHR querySurfaceeFormat();
         vk::Extent2D querySurfaceExtent(const vk::SurfaceCapabilitiesKHR& capability, int windowWidth, int windowHeight);
         void createImageAndViews();
+        void createDepthResource();
+        vk::Format findDepthFormat() const;
         void createFramebuffers();
     };
 

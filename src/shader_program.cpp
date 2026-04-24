@@ -54,7 +54,7 @@ namespace toy2d {
     void shader_program::initVertexInputDescriptions() {
         vertexAttributes_.resize(2);
         vertexAttributes_[0].setBinding(0)
-                            .setFormat(vk::Format::eR32G32Sfloat)
+                            .setFormat(vk::Format::eR32G32B32Sfloat)
                             .setLocation(0)
                             .setOffset(0);
         vertexAttributes_[1].setBinding(0)

@@ -14,6 +14,22 @@ namespace toy2d {
         constexpr float kDefaultAspectRatio = 16.0f / 9.0f;
         constexpr float kDefaultNearPlane = 0.1f;
         constexpr float kDefaultFarPlane = 100.0f;
+
+        glm::mat4 CreatePerspectiveRH_ZO(float fovYRadians,
+                                         float aspectRatio,
+                                         float nearPlane,
+                                         float farPlane) {
+            float tanHalfFovY = std::tan(fovYRadians * 0.5f);
+            glm::mat4 matrix(0.0f);
+
+            matrix[0][0] = 1.0f / (aspectRatio * tanHalfFovY);
+            matrix[1][1] = -1.0f / tanHalfFovY;
+            matrix[2][2] = farPlane / (nearPlane - farPlane);
+            matrix[2][3] = -1.0f;
+            matrix[3][2] = (nearPlane * farPlane) / (nearPlane - farPlane);
+
+            return matrix;
+        }
     }
 
     Camera::Camera() {
@@ -108,8 +124,10 @@ namespace toy2d {
     }
 
     void Camera::syncProjectionMatrix() {
-        projectMat_ = glm::perspectiveRH_ZO(glm::radians(zoom_), aspectRatio_, nearPlane_, farPlane_);
-        projectMat_[1][1] *= -1.0f;
+        projectMat_ = CreatePerspectiveRH_ZO(glm::radians(zoom_),
+                                             aspectRatio_,
+                                             nearPlane_,
+                                             farPlane_);
     }
 
     void Camera::syncViewMatrix() {

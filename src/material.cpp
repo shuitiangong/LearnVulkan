@@ -98,7 +98,7 @@ namespace toy2d {
         for (int i = 0; i < descriptorSets_.size(); i++) {
             vk::DescriptorImageInfo imageInfo;
             imageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-                     .setImageView(texture ? texture->view : vk::ImageView{})
+                     .setImageView(texture ? texture->GetImageView() : vk::ImageView{})
                      .setSampler(sampler);
 
             vk::WriteDescriptorSet writeInfo;

@@ -1,5 +1,6 @@
 #include "swapchain.hpp"
 #include "context.hpp"
+#include "buffer.hpp"
 
 namespace toy2d {
 
@@ -7,16 +8,31 @@ namespace toy2d {
         querySurfaceInfo(windowWidth, windowHeight);
         swapchain = createSwapchain();
         createImageAndViews();
+        createDepthResource();
     }
 
     Swapchain::~Swapchain() {
         auto& ctx = Context::Instance();
-        for (auto& img : images) {
-            ctx.device.destroyImageView(img.view);
-        }
         for (auto& framebuffer : framebuffers) {
             Context::Instance().device.destroyFramebuffer(framebuffer);
         }
+
+        if (depthImage.view) {
+            ctx.device.destroyImageView(depthImage.view);
+        }
+
+        if (depthImage.image) {
+            ctx.device.destroyImage(depthImage.image);
+        }
+
+        if (depthImage.memory) {
+            ctx.device.freeMemory(depthImage.memory);
+        }
+
+        for (auto& img : swapchainImages) {
+            ctx.device.destroyImageView(img.view);
+        }
+        
         ctx.device.destroySwapchainKHR(swapchain);
         ctx.instance.destroySurfaceKHR(surface);
     }
@@ -90,8 +106,9 @@ namespace toy2d {
         auto& ctx = Context::Instance();
         auto images = ctx.device.getSwapchainImagesKHR(swapchain);
         for (auto& image : images) {
-            Image img;
+            ImageResource img;
             img.image = image;
+            img.format = surfaceInfo_.format.format;
             vk::ImageViewCreateInfo viewCreateInfo;
             vk::ImageSubresourceRange range;
             range.setBaseArrayLayer(0)
@@ -105,16 +122,78 @@ namespace toy2d {
                           .setSubresourceRange(range)
                           .setComponents(vk::ComponentMapping{});
             img.view = ctx.device.createImageView(viewCreateInfo);
-            this->images.push_back(img);
+            swapchainImages.push_back(img);
         }
     }
 
-    void Swapchain::createFramebuffers() {
-        for (auto& img : images) {
-            auto& view = img.view;
+    void Swapchain::createDepthResource() {
+        auto& ctx = Context::Instance();
+        
+        depthImage.format = findDepthFormat();
+        vk::ImageCreateInfo imageInfo;
+        imageInfo.setImageType(vk::ImageType::e2D)
+                 .setExtent(vk::Extent3D{GetExtent().width, GetExtent().height, 1}) // vk::Image always uses Extent3D; 2D images keep depth = 1
+                 .setMipLevels(1)
+                 .setArrayLayers(1)
+                 .setFormat(depthImage.format)
+                 .setTiling(vk::ImageTiling::eOptimal)
+                 .setInitialLayout(vk::ImageLayout::eUndefined)
+                 .setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment)
+                 .setSamples(vk::SampleCountFlagBits::e1)
+                 .setSharingMode(vk::SharingMode::eExclusive);
+        depthImage.image = ctx.device.createImage(imageInfo);
+        
+        auto memReq = ctx.device.getImageMemoryRequirements(depthImage.image);
+        vk::MemoryAllocateInfo allocInfo;
+        allocInfo.setAllocationSize(memReq.size)
+                 .setMemoryTypeIndex(queryBufferMemTypeIndex(memReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
+        depthImage.memory = ctx.device.allocateMemory(allocInfo);
+        ctx.device.bindImageMemory(depthImage.image, depthImage.memory, 0);
 
+        // expose only the depth aspect for framebuffer and render pass attachment usage
+        vk::ImageSubresourceRange range;
+        range.setAspectMask(vk::ImageAspectFlagBits::eDepth)
+             .setBaseMipLevel(0)
+             .setLevelCount(1)
+             .setBaseArrayLayer(0)
+             .setLayerCount(1);
+
+        vk::ImageViewCreateInfo viewInfo;
+        viewInfo.setImage(depthImage.image)
+                .setViewType(vk::ImageViewType::e2D)
+                .setFormat(depthImage.format)
+                .setSubresourceRange(range);
+        depthImage.view = ctx.device.createImageView(viewInfo);        
+    }
+
+    vk::Format Swapchain::findDepthFormat() const {
+        std::array<vk::Format, 3> candidates = {
+            vk::Format::eD32Sfloat,
+            vk::Format::eD32SfloatS8Uint,
+            vk::Format::eD24UnormS8Uint
+        };
+
+        auto& phy = Context::Instance().phyDevice;
+        for (const auto& format : candidates) {
+            auto props = phy.getFormatProperties(format);
+            if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
+                return format;
+            }
+        }
+
+        throw std::runtime_error("Failed to find supported depth format!");
+    }
+
+    void Swapchain::createFramebuffers() {
+        for (auto& img : swapchainImages) {
             vk::FramebufferCreateInfo createInfo;
-            createInfo.setAttachments(view)
+
+            std::array<vk::ImageView, 2> attachments = {
+                img.view,
+                depthImage.view
+            };
+
+            createInfo.setAttachments(attachments)
                       .setLayers(1)
                       .setHeight(GetExtent().height)
                       .setWidth(GetExtent().width)
