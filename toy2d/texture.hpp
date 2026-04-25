@@ -14,9 +14,11 @@ namespace toy2d {
         vk::ImageView GetImageView() const { return image_.view; }
         vk::Format GetFormat() const { return image_.format; }
         const AllocatedImage& GetImage() const { return image_; }
+        uint32_t GetMipLevels() const {return mipLevels_; }
 
     private:
         AllocatedImage image_;
+        uint32_t mipLevels_ = 1;
 
         void createImage(uint32_t w, uint32_t h);
         void allocMemory();
@@ -24,6 +26,7 @@ namespace toy2d {
         uint32_t queryImageMemoryIndex();
         void transitionImageLayoutFromUndefine2Dst();
         void transitionImageLayoutFromDst2Optimal();
+        void generateMipmaps(uint32_t w, uint32_t h);
         void transformData2Image(Buffer&, uint32_t w, uint32_t h);
     };
 }

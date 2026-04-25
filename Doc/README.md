@@ -20,3 +20,4 @@ This directory stores study notes for the project.
 - [14 - 3D Camera](./14-3D-Camera.md)
 - [15 - Depth Buffer](./15-Depth-Buffer.md)
 - [16 - Loading Models](./16-Loading-Models.md)
+- [17 - Generating Mipmaps](./17-Generating-Mipmaps.md)

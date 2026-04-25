@@ -21,6 +21,9 @@ namespace toy2d {
                   .setBorderColor(vk::BorderColor::eIntOpaqueBlack)
                   .setUnnormalizedCoordinates(false)
                   .setCompareEnable(false)
+                  .setMipLodBias(0.0f)
+                  .setMinLod(0.0f)
+                  .setMaxLod(texture ? static_cast<float>(texture->GetMipLevels()) : 0.0f)
                   .setMipmapMode(vk::SamplerMipmapMode::eLinear);
         destroySampler();
         sampler = Context::Instance().device.createSampler(createInfo);
@@ -30,11 +33,8 @@ namespace toy2d {
     Texture& Material::createTexture(const std::string& path) {
         destroyTexture();
         texture = std::make_unique<Texture>(path);
-        if (!sampler) {
-            createSampler();
-        } else {
-            descriptorDirty_ = true;
-        }
+        //mipLevel变了以后，maxlod也要重新按新纹理设置
+        createSampler();
         return *texture;
     }
 
