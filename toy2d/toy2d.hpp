@@ -1,6 +1,7 @@
 #pragma once
 
 #include "context.hpp"
+#include "model.hpp"
 #include "render_process.hpp"
 #include "renderer.hpp"
 #include <memory>

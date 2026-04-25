@@ -1,7 +1,6 @@
 #include "toy2d.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
-#include <array>
 #include <glm/glm.hpp>
 
 #include <cstdlib>
@@ -49,51 +48,20 @@ int main(int argc, char** argv) {
     {
         auto renderer = toy2d::GetRenderer();
         auto& camera = renderer->GetCamera();
-        auto cubeMesh = toy2d::CreateCubeMesh();
-        constexpr std::array cubePositions = {
-            glm::vec3{-2.8f,  1.5f,  0.0f},
-            glm::vec3{-0.8f,  1.3f, -1.4f},
-            glm::vec3{ 1.2f,  1.0f, -2.8f},
-            glm::vec3{ 3.0f,  1.4f, -4.0f},
-            glm::vec3{-2.5f, -1.0f, -1.0f},
-            glm::vec3{-0.2f, -1.3f, -2.3f},
-            glm::vec3{ 2.0f, -1.1f, -3.6f},
-            glm::vec3{ 3.6f, -0.7f, -5.0f},
-        };
-        constexpr std::array cubeSizes = {
-            glm::vec3{0.8f, 0.8f, 0.8f},
-            glm::vec3{1.1f, 0.7f, 0.9f},
-            glm::vec3{0.9f, 1.3f, 0.8f},
-            glm::vec3{1.4f, 0.6f, 1.0f},
-            glm::vec3{0.7f, 1.0f, 1.2f},
-            glm::vec3{1.0f, 1.0f, 0.6f},
-            glm::vec3{1.3f, 0.8f, 1.3f},
-            glm::vec3{0.9f, 1.5f, 0.7f},
-        };
-        constexpr std::array cubeColors = {
-            glm::vec3{1.0f, 0.4f, 0.4f},
-            glm::vec3{0.4f, 1.0f, 0.4f},
-            glm::vec3{0.4f, 0.6f, 1.0f},
-            glm::vec3{1.0f, 0.8f, 0.3f},
-            glm::vec3{0.8f, 0.4f, 1.0f},
-            glm::vec3{0.3f, 1.0f, 0.9f},
-            glm::vec3{1.0f, 0.6f, 0.7f},
-            glm::vec3{0.9f, 0.9f, 0.9f},
-        };
+        auto modelPath = toy2d::ResolveAssetPath("assets/models/viking_room.obj");
+        auto texturePath = toy2d::ResolveAssetPath("assets/textures/viking_room.png");
 
-        std::array<toy2d::Material, cubePositions.size()> materials;
-        std::array<toy2d::GameObject, cubePositions.size()> cubes;
-        for (std::size_t i = 0; i < cubes.size(); ++i) {
-            materials[i].color = cubeColors[i];
-            materials[i].createTexture("../../../assets/opaque.png");
+        auto roomMesh = toy2d::LoadObjMesh(modelPath);
+        toy2d::Material roomMaterial;
+        roomMaterial.createTexture(texturePath.string());
 
-            cubes[i].SetMaterial(&materials[i]);
-            cubes[i].SetMesh(&cubeMesh);
-            cubes[i].SetSize(cubeSizes[i]);
-            cubes[i].SetPosition(cubePositions[i]);
-        }
+        toy2d::GameObject room;
+        room.SetMaterial(&roomMaterial);
+        room.SetMesh(&roomMesh);
+        room.SetPosition(glm::vec3{-0.08f, -0.01f, -0.40f});
+        room.SetRotationDegrees(glm::vec3{90.0f, 180.0f, 90.0f});
 
-        camera.SetPosition(0.0f, 0.0f, 8.5f);
+        camera.SetPosition(0.0f, 0.0f, 2.8f);
 
         bool shouldClose = false;
         bool rotateCamera = false;
@@ -151,9 +119,7 @@ int main(int argc, char** argv) {
             }
 
             renderer->BeginFrame();
-            for (const auto& cube : cubes) {
-                renderer->Draw(cube);
-            }
+            renderer->Draw(room);
             renderer->EndFrame();
         }
 

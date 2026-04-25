@@ -1,5 +1,7 @@
 #include "tool.hpp"
 
+#include <stdexcept>
+
 namespace toy2d {
     std::vector<uint32_t> ReadSpvFile(const std::string& filename) {
         std::ifstream file(filename, std::ios::binary|std::ios::ate);
@@ -21,5 +23,34 @@ namespace toy2d {
         file.read(reinterpret_cast<char*>(content.data()), static_cast<std::streamsize>(size));
 
         return content;
+    }
+
+    std::filesystem::path ResolveAssetPath(const std::filesystem::path& relativePath) {
+        if (relativePath.empty()) {
+            throw std::runtime_error("asset path is empty");
+        }
+
+        if (relativePath.is_absolute()) {
+            if (std::filesystem::exists(relativePath)) {
+                return std::filesystem::weakly_canonical(relativePath);
+            }
+            throw std::runtime_error("asset does not exist: " + relativePath.string());
+        }
+
+        auto current = std::filesystem::current_path();
+        while (true) {
+            auto candidate = current / relativePath;
+            if (std::filesystem::exists(candidate)) {
+                return std::filesystem::weakly_canonical(candidate);
+            }
+
+            auto parent = current.parent_path();
+            if (parent == current) {
+                break;
+            }
+            current = parent;
+        }
+
+        throw std::runtime_error("failed to resolve asset path: " + relativePath.string());
     }
 }

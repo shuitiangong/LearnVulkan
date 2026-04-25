@@ -14,6 +14,7 @@ namespace toy2d {
         glm::vec3 position{0.0f, 0.0f, 0.0f};
         glm::vec3 size{1.0f, 1.0f, 1.0f};
         glm::vec3 scale{1.0f, 1.0f, 1.0f};
+        glm::vec3 rotation{0.0f, 0.0f, 0.0f}; // radians
 
         void SetPosition(const glm::vec2& value) { position = glm::vec3(value, 0.0f); }
         void SetPosition(const glm::vec3& value) { position = value; }
@@ -27,9 +28,21 @@ namespace toy2d {
         void SetScale(const glm::vec3& value) { scale = value; }
         const glm::vec3& GetScale() const { return scale; }
 
+        void SetRotation(const glm::vec3& value) { rotation = value; }
+        void SetRotationDegrees(const glm::vec3& value) { rotation = glm::radians(value); }
+        void Rotate(const glm::vec3& delta) { rotation += delta; }
+        void RotateDegrees(const glm::vec3& delta) { rotation += glm::radians(delta); }
+        const glm::vec3& GetRotation() const { return rotation; }
+
         glm::mat4 GetModelMatrix() const {
             glm::vec3 finalScale{size.x * scale.x, size.y * scale.y, scale.z};
+            glm::mat4 rotationMatrix(1.0f);
+            rotationMatrix = glm::rotate(rotationMatrix, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+            rotationMatrix = glm::rotate(rotationMatrix, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+            rotationMatrix = glm::rotate(rotationMatrix, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+
             return glm::translate(glm::mat4(1.0f), position) *
+                   rotationMatrix *
                    glm::scale(glm::mat4(1.0f), finalScale);
         }
     };
@@ -118,6 +131,12 @@ namespace toy2d {
         void SetScale(const glm::vec2& scale) { transform.SetScale(scale); }
         void SetScale(const glm::vec3& scale) { transform.SetScale(scale); }
         const glm::vec3& GetScale() const { return transform.GetScale(); }
+
+        void SetRotation(const glm::vec3& rotation) { transform.SetRotation(rotation); }
+        void SetRotationDegrees(const glm::vec3& rotation) { transform.SetRotationDegrees(rotation); }
+        void Rotate(const glm::vec3& delta) { transform.Rotate(delta); }
+        void RotateDegrees(const glm::vec3& delta) { transform.RotateDegrees(delta); }
+        const glm::vec3& GetRotation() const { return transform.GetRotation(); }
 
         void SetMaterial(Material* newMaterial) { material = newMaterial; }
         Material* GetMaterial() { return material; }
