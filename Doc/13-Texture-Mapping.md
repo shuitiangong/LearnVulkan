@@ -70,9 +70,12 @@ Texture mapping 更适合使用 `vk::Image`，原因主要有三点：
 ```cpp
 class Texture final {
 public:
-    vk::Image image;
-    vk::DeviceMemory memory;
-    vk::ImageView view;
+    vk::Image GetVkImage() const { return image_.image; }
+    vk::ImageView GetImageView() const { return image_.view; }
+    vk::Format GetFormat() const { return image_.format; }
+
+private:
+    AllocatedImage image_;
 };
 ```
 
@@ -101,9 +104,12 @@ Vulkan 没有一个单独叫“Texture”的原生对象。
 ```cpp
 class Texture final {
 public:
-    vk::Image image;
-    vk::DeviceMemory memory;
-    vk::ImageView view;
+    vk::Image GetVkImage() const { return image_.image; }
+    vk::ImageView GetImageView() const { return image_.view; }
+    vk::Format GetFormat() const { return image_.format; }
+
+private:
+    AllocatedImage image_;
 };
 ```
 
@@ -257,12 +263,12 @@ range.setAspectMask(vk::ImageAspectFlagBits::eColor)
      .setLevelCount(1)
      .setBaseMipLevel(0);
 
-createInfo.setImage(image)
+createInfo.setImage(image_.image)
           .setViewType(vk::ImageViewType::e2D)
-          .setFormat(vk::Format::eR8G8B8A8Srgb)
+          .setFormat(image_.format)
           .setSubresourceRange(range);
 
-view = Context::Instance().device.createImageView(createInfo);
+image_.view = Context::Instance().device.createImageView(createInfo);
 ```
 
 这一步定义了三件事：
@@ -551,11 +557,12 @@ CPU 内存中的像素数组
 当前项目在 `Texture::createImage()` 中创建二维纹理：
 
 ```cpp
+image_.format = vk::Format::eR8G8B8A8Srgb;
 createInfo.setImageType(vk::ImageType::e2D)
           .setArrayLayers(1)
           .setMipLevels(1)
           .setExtent({w, h, 1})
-          .setFormat(vk::Format::eR8G8B8A8Srgb)
+          .setFormat(image_.format)
           .setTiling(vk::ImageTiling::eOptimal)
           .setInitialLayout(vk::ImageLayout::eUndefined)
           .setUsage(vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled)
@@ -680,19 +687,19 @@ Undefined
 当前项目的分配逻辑如下：
 
 ```cpp
-auto requirements = device.getImageMemoryRequirements(image);
+auto requirements = device.getImageMemoryRequirements(image_.image);
 allocInfo.setAllocationSize(requirements.size);
 
 auto index = queryBufferMemTypeIndex(requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
 allocInfo.setMemoryTypeIndex(index);
 
-memory = device.allocateMemory(allocInfo);
+image_.memory = device.allocateMemory(allocInfo);
 ```
 
 随后绑定：
 
 ```cpp
-Context::Instance().device.bindImageMemory(image, memory, 0);
+Context::Instance().device.bindImageMemory(image_.image, image_.memory, 0);
 ```
 
 这里选择 `eDeviceLocal` 非常重要。  
@@ -754,7 +761,7 @@ cmdBuf.pipelineBarrier(..., barrier);
 当前项目在 `transitionImageLayoutFromUndefine2Dst()` 中做第一次 layout transition：
 
 ```cpp
-barrier.setImage(image)
+barrier.setImage(image_.image)
        .setOldLayout(vk::ImageLayout::eUndefined)
        .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
        .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -893,7 +900,7 @@ region.setBufferImageHeight(0)
       .setBufferRowLength(0)
       .setImageSubresource(subsource);
 cmdBuf.copyBufferToImage(buffer.buffer, 
-                         image, 
+                         image_.image, 
                          vk::ImageLayout::eTransferDstOptimal,
                          region);
 ```
@@ -920,7 +927,7 @@ cmdBuf.copyBufferToImage(buffer.buffer,
 当前项目在 `transitionImageLayoutFromDst2Optimal()` 中完成第二次 transition：
 
 ```cpp
-barrier.setImage(image)
+barrier.setImage(image_.image)
        .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
        .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
        .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -1005,12 +1012,12 @@ range.setAspectMask(vk::ImageAspectFlagBits::eColor)
      .setLayerCount(1)
      .setLevelCount(1)
      .setBaseMipLevel(0);
-createInfo.setImage(image)
+createInfo.setImage(image_.image)
           .setViewType(vk::ImageViewType::e2D)
           .setComponents(mapping)
-          .setFormat(vk::Format::eR8G8B8A8Srgb)
+          .setFormat(image_.format)
           .setSubresourceRange(range);
-view = Context::Instance().device.createImageView(createInfo);
+image_.view = Context::Instance().device.createImageView(createInfo);
 ```
 
 这里定义出来的是：
@@ -1094,7 +1101,7 @@ descriptorSets_ = Context::Instance().device.allocateDescriptorSets(allocInfo);
 ```cpp
 vk::DescriptorImageInfo imageInfo;
 imageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-         .setImageView(texture ? texture->view : vk::ImageView{})
+         .setImageView(texture ? texture->GetImageView() : vk::ImageView{})
          .setSampler(sampler);
 
 vk::WriteDescriptorSet writeInfo;

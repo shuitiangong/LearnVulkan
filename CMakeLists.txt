@@ -59,6 +59,7 @@ add_executable(${PROJECT_NAME}
     src/command_manager.cpp
     src/main.cpp
     src/material.cpp
+    src/model.cpp
     src/math.cpp
     src/shader_program.cpp
     src/toy2d.cpp
@@ -160,6 +161,7 @@ target_include_directories(${PROJECT_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/toy2d"
         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/tinyobjloader"
 )
 
 if(MINGW)
